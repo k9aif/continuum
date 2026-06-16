@@ -130,8 +130,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 .ucd-item {
   padding: 10px 16px; font-size: 13px; color: var(--text);
   cursor: pointer; transition: background .12s; white-space: nowrap;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .ucd-item:hover { background: var(--accent-light); color: var(--accent); }
+.ucd-soon { color: var(--text-muted); cursor: default; }
+.ucd-soon:hover { background: transparent; color: var(--text-muted); }
+.ucd-separator { height: 1px; background: var(--border); margin: 4px 0; }
+.ucd-section-label {
+  padding: 6px 16px 3px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted);
+}
 .user-chip-role {
   font-size: 11px; font-weight: 700; padding: 1px 7px;
   border-radius: 99px; letter-spacing: .3px;

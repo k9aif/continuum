@@ -139,15 +139,9 @@
           <button class="nav-btn" id="nav-apps" onclick="switchTab('apps')">Applications</button>
         </div>
         <div class="nav-item admin-only">
-          <button class="nav-btn" id="nav-account">Account Management</button>
-          <div class="nav-dropdown">
-            <div class="nav-dd-item" onclick="switchTab('review')">
-              Review Queue <span id="review-nav-badge" class="review-nav-badge" style="display:none">0</span>
-            </div>
-            <div class="nav-dd-item" onclick="switchTab('users')">Users</div>
-            <div class="nav-dd-item nav-dd-soon">Groups <span class="soon-badge">soon</span></div>
-            <div class="nav-dd-item" onclick="switchTab('projects')">Projects</div>
-          </div>
+          <button class="nav-btn" id="nav-review" onclick="switchTab('review')">
+            Review Queue <span id="review-nav-badge" class="review-nav-badge" style="display:none">0</span>
+          </button>
         </div>
       </nav>
 
@@ -157,6 +151,11 @@
           <span id="user-chip-role" class="user-chip-role"></span>
           <div class="user-chip-dropdown" id="user-chip-dropdown">
             <div class="ucd-item" id="admin-toggle-btn"></div>
+            <div class="ucd-separator admin-only"></div>
+            <div class="ucd-section-label admin-only">Account Management</div>
+            <div class="ucd-item admin-only" onclick="switchTabFromChip('users')">Users</div>
+            <div class="ucd-item admin-only ucd-soon">Groups <span class="soon-badge">soon</span></div>
+            <div class="ucd-item admin-only" onclick="switchTabFromChip('projects')">Projects</div>
           </div>
         </div>
         <button id="help-btn" class="icon-btn" title="Help">?</button>
@@ -315,10 +314,6 @@
       <div class="form-check">
         <input type="checkbox" id="f-inspect" />
         <label for="f-inspect">k9aif inspect passed — SBB complies with ABB contract</label>
-      </div>
-      <div class="form-check">
-        <input type="checkbox" id="f-manager-approved" required />
-        <label for="f-manager-approved">My manager has reviewed and approved this submission</label>
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeModal('publish-modal')">Cancel</button>

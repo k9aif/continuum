@@ -78,8 +78,13 @@ function switchTab(tab) {
   const catalogTabs = ["sbbs", "abbs"];
   document.getElementById("nav-catalog")?.classList.toggle("active", catalogTabs.includes(tab));
   document.getElementById("nav-apps")?.classList.toggle("active", tab === "apps");
-  document.getElementById("nav-account")?.classList.toggle("active", ["users","projects","groups","review"].includes(tab));
+  document.getElementById("nav-review")?.classList.toggle("active", tab === "review");
   render();
+}
+
+function switchTabFromChip(tab) {
+  document.getElementById("user-chip-dropdown")?.classList.remove("open");
+  switchTab(tab);
 }
 
 // ── Admin mode ─────────────────────────────────────────────────────────────
@@ -499,7 +504,6 @@ async function submitPublish(e) {
   const checkedAbbs = [...document.querySelectorAll(".abb-cb:checked")].map(c => c.value);
   const customAbbs  = splitCSV(document.getElementById("f-abb-custom")?.value || "");
   if (!checkedAbbs.length && !customAbbs.length) { toast("Select at least one ABB contract", "error"); return; }
-  if (!document.getElementById("f-manager-approved").checked) { toast("Manager approval is required before submitting", "error"); return; }
   const payload = {
     name:           document.getElementById("f-name").value.trim(),
     kind:           document.getElementById("f-kind").value,

@@ -72,6 +72,7 @@ function switchTab(tab) {
   document.getElementById("sidebar-review").style.display      = tab === "review"      ? "" : "none";
   document.getElementById("sidebar-app-review").style.display  = tab === "app-review"  ? "" : "none";
   document.getElementById("sidebar-user-review").style.display = tab === "user-review" ? "" : "none";
+  document.getElementById("sidebar-continuum").style.display   = tab === "continuum"   ? "" : "none";
   document.getElementById("sidebar-dashboard").style.display   = tab === "dashboard"   ? "" : "none";
   document.getElementById("sidebar-abb-list").style.display    = tab === "sbbs"        ? "" : "none";
   document.getElementById("search-input").placeholder =
@@ -82,6 +83,7 @@ function switchTab(tab) {
   const catalogTabs = ["sbbs", "abbs"];
   document.getElementById("nav-catalog")?.classList.toggle("active", catalogTabs.includes(tab));
   document.getElementById("nav-apps")?.classList.toggle("active", tab === "apps");
+  document.getElementById("nav-continuum")?.classList.toggle("active", tab === "continuum");
   document.getElementById("nav-review")?.classList.toggle("active", ["review","app-review","user-review"].includes(tab));
   document.getElementById("nav-dashboard")?.classList.toggle("active", tab === "dashboard");
   if (tab === "dashboard") loadDashboard(dashPeriod);
@@ -122,6 +124,7 @@ function render() {
   if (activeTab === "users")      renderUserGrid();
   if (activeTab === "review")     renderReviewQueue();
   if (activeTab === "app-review") renderAppReviewQueue();
+  if (activeTab === "continuum")  renderContinuum();
   if (activeTab === "dashboard" && dashData) renderDashboard();
 }
 
@@ -791,6 +794,124 @@ function renderDonutChart(statuses) {
     </svg>
     <div class="dash-legend">${legend}</div>
   </div>`;
+}
+
+// ── Enterprise Continuum ───────────────────────────────────────────────────
+const EC_LEVELS = ["Foundation", "CommonSystems", "Industry", "OrgSpecific"];
+const EC_META = {
+  Foundation:    { label: "Foundation",     color: "#6366f1", desc: "Generic, vendor-neutral contracts applicable to all agentic systems" },
+  CommonSystems: { label: "Common Systems", color: "#10b981", desc: "Cross-industry reusable patterns built on Foundation contracts" },
+  Industry:      { label: "Industry",       color: "#f59e0b", desc: "Domain-specific patterns for vertical industries — Insurance, Finance, Healthcare, Defense" },
+  OrgSpecific:   { label: "Org-Specific",   color: "#8b5cf6", desc: "Enterprise-customized solutions and deployed applications" },
+};
+const EC_TIER_PRIORITY = { OrgSpecific: 4, Industry: 3, CommonSystems: 2, Foundation: 1 };
+
+function sbbTier(sbb) {
+  const names = sbb.abb_names || [];
+  if (!names.length) return sbb.domain ? "Industry" : "OrgSpecific";
+  let best = "Foundation";
+  names.forEach(name => {
+    const abb = allABBs.find(a => a.name === name);
+    const lvl = abb ? abb.level : "Foundation";
+    if ((EC_TIER_PRIORITY[lvl] || 1) > (EC_TIER_PRIORITY[best] || 1)) best = lvl;
+  });
+  // Domain-tagged SBBs with only Foundation ABBs → Industry
+  if (best === "Foundation" && sbb.domain) best = "Industry";
+  return best;
+}
+
+function openABBById(id)  { const a = allABBs.find(x => x.id === id); if (a) openABBDetail(a); }
+function openSBBById(id)  { const s = allSBBs.find(x => x.id === id); if (s) openSBBDetail(s); }
+function openAppById(id)  { const a = allApps.find(x => x.id === id); if (a) openAppDetail(a); }
+
+function renderContinuum() {
+  const matrix = document.getElementById("ec-matrix");
+  if (!matrix) return;
+
+  // Group ABBs by level
+  const abbsByLevel = {};
+  EC_LEVELS.forEach(l => abbsByLevel[l] = []);
+  allABBs.forEach(a => { if (abbsByLevel[a.level]) abbsByLevel[a.level].push(a); });
+
+  // Group published/promoted SBBs by tier
+  const sbbsByTier = {};
+  EC_LEVELS.forEach(l => sbbsByTier[l] = []);
+  allSBBs
+    .filter(s => ["published", "promoted"].includes(s.status))
+    .forEach(s => { const t = sbbTier(s); if (sbbsByTier[t]) sbbsByTier[t].push(s); });
+
+  matrix.innerHTML = "";
+
+  EC_LEVELS.forEach(level => {
+    const meta   = EC_META[level];
+    const abbs   = abbsByLevel[level] || [];
+    const sbbs   = sbbsByTier[level]  || [];
+    const apps   = level === "OrgSpecific" ? allApps.filter(a => a.status !== "archived") : [];
+
+    const row = document.createElement("div");
+    row.className = "ec-row";
+    row.style.borderLeft = `4px solid ${meta.color}`;
+
+    // Tier badge
+    const tierHtml = `
+      <div class="ec-tier-badge">
+        <div class="ec-tier-dot" style="background:${meta.color}"></div>
+        <div class="ec-tier-name" style="color:${meta.color}">${meta.label}</div>
+        <div class="ec-tier-desc">${meta.desc}</div>
+      </div>`;
+
+    // ABBs
+    let abbHtml = abbs.length
+      ? abbs.map(a => `
+          <div class="ec-abb-card" onclick="openABBById(${a.id})">
+            <div class="ec-abb-name">${a.name}</div>
+            <div class="ec-abb-kind">${a.kind}</div>
+            ${a.module ? `<div class="ec-abb-module">${a.module}</div>` : ""}
+          </div>`).join("")
+      : `<div class="ec-empty-col">
+           <span class="ec-empty-hint">No ${meta.label} ABBs yet</span>
+           ${["Industry","OrgSpecific"].includes(level) ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('abbs')">+ Register ABB</button>` : ""}
+         </div>`;
+
+    // SBBs + Apps
+    let sbbHtml = "";
+    if (sbbs.length) {
+      sbbHtml += sbbs.map(s => `
+        <div class="ec-sbb-card ec-sbb-${s.status}" onclick="openSBBById(${s.id})">
+          <div class="ec-sbb-name">${s.name}</div>
+          <div class="ec-sbb-meta">
+            ${s.kind ? badge("badge-kind", s.kind) : ""}
+            ${s.status === "promoted" ? badge("badge-inspect", "promoted") : ""}
+            ${s.inspect_passed ? `<span style="color:var(--success);font-size:10px">✓ inspect</span>` : ""}
+          </div>
+        </div>`).join("");
+    }
+    if (apps.length) {
+      sbbHtml += apps.map(a => `
+        <div class="ec-app-card" onclick="openAppById(${a.id})">
+          <div class="ec-app-dot app-status-${a.status}"></div>
+          <div class="ec-app-name">${a.name}</div>
+          ${badge("app-badge-" + a.status, a.status)}
+        </div>`).join("");
+    }
+    if (!sbbs.length && !apps.length) {
+      const action = level === "OrgSpecific"
+        ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('apps')">+ Register App</button>`
+        : `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('sbbs')">+ Publish SBB</button>`;
+      sbbHtml = `<div class="ec-empty-col"><span class="ec-empty-hint">No implementations yet</span>${action}</div>`;
+    }
+
+    row.innerHTML = `
+      ${tierHtml}
+      <div class="ec-abb-col">${abbHtml}</div>
+      <div class="ec-sep">
+        <div class="ec-sep-arrow" style="color:${meta.color}">→</div>
+        <div class="ec-sep-label">implements</div>
+      </div>
+      <div class="ec-sbb-col">${sbbHtml}</div>`;
+
+    matrix.appendChild(row);
+  });
 }
 
 // ── Review Queue ───────────────────────────────────────────────────────────

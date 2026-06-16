@@ -641,3 +641,92 @@ body.dark .login-error { background: #450a0a; }
   display: flex; gap: 10px; padding-top: 20px;
   border-top: 1px solid var(--border); margin-top: auto;
 }
+
+/* ── Enterprise Continuum ─────────────────────────────────────────────────── */
+.ec-togaf-badge { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+
+.ec-direction-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 11px 20px; margin-bottom: 16px;
+}
+.ec-direction-side  { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+.ec-direction-arrow { font-size: 20px; color: var(--accent); opacity: .7; }
+.ec-direction-center { font-size: 13px; font-weight: 700; color: var(--text-header); }
+
+.ec-col-headers {
+  display: grid; grid-template-columns: 170px 1fr 56px 1fr;
+  gap: 0 0; margin-bottom: 8px; padding: 0 0 0 0;
+}
+.ec-col-header-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted); padding: 0 12px 0 16px;
+}
+
+.ec-matrix { display: flex; flex-direction: column; gap: 10px; }
+
+.ec-row {
+  display: grid; grid-template-columns: 170px 1fr 56px 1fr;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; min-height: 110px;
+  box-shadow: var(--shadow);
+}
+
+.ec-tier-badge {
+  padding: 14px 12px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px; background: var(--bg);
+}
+.ec-tier-dot  { width: 10px; height: 10px; border-radius: 50%; margin-bottom: 2px; }
+.ec-tier-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.ec-tier-desc { font-size: 10px; color: var(--text-muted); line-height: 1.45; }
+
+.ec-abb-col, .ec-sbb-col {
+  padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;
+}
+.ec-abb-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  cursor: pointer; transition: border-color .15s; min-width: 120px;
+}
+.ec-abb-card:hover  { border-color: var(--accent); }
+.ec-abb-name   { font-size: 12px; font-weight: 600; color: var(--text-header); margin-bottom: 2px; }
+.ec-abb-kind   { font-size: 10px; color: var(--text-muted); }
+.ec-abb-module { font-size: 9px; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+
+.ec-sbb-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  cursor: pointer; transition: border-color .15s; min-width: 120px;
+}
+.ec-sbb-card:hover           { border-color: var(--accent); }
+.ec-sbb-card.ec-sbb-promoted { border-left: 3px solid var(--promoted); }
+.ec-sbb-card.ec-sbb-published{ border-left: 3px solid var(--success); }
+.ec-sbb-name { font-size: 12px; font-weight: 600; color: var(--text-header); margin-bottom: 4px; }
+.ec-sbb-meta { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+
+.ec-app-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  cursor: pointer; transition: border-color .15s;
+  display: flex; align-items: center; gap: 7px; min-width: 120px;
+}
+.ec-app-card:hover { border-color: var(--accent); }
+.ec-app-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ec-app-name { font-size: 12px; font-weight: 600; color: var(--text-header); flex: 1; }
+
+.ec-sep {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  gap: 4px; background: var(--bg);
+}
+.ec-sep-arrow { font-size: 18px; opacity: .75; }
+.ec-sep-label {
+  font-size: 8px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: .4px; writing-mode: vertical-rl;
+}
+
+.ec-empty-col {
+  padding: 12px; color: var(--text-muted); font-size: 12px;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+}
+.ec-empty-hint { font-style: italic; }

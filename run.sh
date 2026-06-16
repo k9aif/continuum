@@ -12,6 +12,6 @@ fi
 source .venv/bin/activate
 
 PORT="${REPO_PORT:-8085}"
-echo "k9x Repository → http://localhost:${PORT}"
+echo "k9x Continuum → http://localhost:${PORT}"
 
 uvicorn backend.main:app --host 0.0.0.0 --port "$PORT" --reload

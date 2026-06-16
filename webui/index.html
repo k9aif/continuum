@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>k9x Repository</title>
-  <link rel="stylesheet" href="/static/app.css?v=1" />
-  <script src="/static/app.js?v=1" defer></script>
+  <title>k9x Continuum</title>
+  <link rel="stylesheet" href="/static/app.css?v=4" />
+  <script src="/static/app.js?v=4" defer></script>
 </head>
 <body>
 
@@ -14,16 +14,17 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <h2>k9x Repository</h2>
+      <h2>k9x Continuum</h2>
       <p>Agentic SBB &amp; ABB Catalog</p>
     </div>
 
     <div class="search-wrap">
-      <input id="search-input" class="search-input" type="search" placeholder="Search SBBs…" />
+      <input id="search-input" class="search-input" type="search" placeholder="Search…" />
     </div>
 
-    <div class="filters">
-      <div class="filter-label">Filters</div>
+    <!-- SBB filters -->
+    <div id="sidebar-sbbs" class="filters">
+      <div class="filter-label">Filter SBBs</div>
       <select id="filter-kind" class="filter-select">
         <option value="">All kinds</option>
         <option value="Agent">Agent</option>
@@ -40,36 +41,77 @@
       </select>
     </div>
 
-    <div class="abb-section">
+    <!-- ABB filters -->
+    <div id="sidebar-abbs" class="filters" style="display:none">
+      <div class="filter-label">Filter ABBs</div>
+      <select id="filter-level" class="filter-select">
+        <option value="">All levels</option>
+        <option value="Foundation">Foundation</option>
+        <option value="CommonSystems">Common Systems</option>
+        <option value="Industry">Industry</option>
+        <option value="OrgSpecific">Org Specific</option>
+      </select>
+    </div>
+
+    <!-- App filters -->
+    <div id="sidebar-apps" class="filters" style="display:none">
+      <div class="filter-label">Filter Applications</div>
+      <select id="filter-app-status" class="filter-select">
+        <option value="">All statuses</option>
+        <option value="poc">POC</option>
+        <option value="active">Active</option>
+        <option value="production">Production</option>
+        <option value="archived">Archived</option>
+      </select>
+    </div>
+
+    <!-- User filters -->
+    <div id="sidebar-users" class="filters" style="display:none">
+      <div class="filter-label">Filter Users</div>
+      <select id="filter-role" class="filter-select">
+        <option value="">All roles</option>
+        <option value="admin">Admin</option>
+        <option value="developer">Developer</option>
+        <option value="analyst">Analyst</option>
+      </select>
+    </div>
+
+    <!-- Review queue sidebar -->
+    <div id="sidebar-review" class="filters" style="display:none">
+      <div class="filter-label">Review Queue</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:4px">
+        SBBs submitted by registered users awaiting admin approval before entering the catalog.
+      </div>
+    </div>
+
+    <!-- ABB list (shown for SBBs tab) -->
+    <div id="sidebar-abb-list" class="abb-section">
       <div class="abb-section-label">ABB Contracts</div>
       <div id="abb-list"></div>
     </div>
 
+    <!-- Phase roadmap -->
     <div class="phase-section">
       <div class="abb-section-label">Roadmap</div>
-
-      <div class="phase-item active">
+      <div class="phase-item">
         <div class="phase-badge live">Live</div>
         <div class="phase-name">Phase 1 — Core Catalog</div>
         <div class="phase-desc">Publish, browse, search, inspect gate</div>
       </div>
-
       <div class="phase-item">
-        <div class="phase-badge wip">Next</div>
+        <div class="phase-badge live">Live</div>
         <div class="phase-name">Phase 2 — Governance</div>
-        <div class="phase-desc">Promote workflow · Admin portal · Audit trail</div>
+        <div class="phase-desc">Promote workflow · Audit trail · Applications · Users</div>
       </div>
-
       <div class="phase-item">
         <div class="phase-badge planned">Planned</div>
         <div class="phase-name">Phase 3 — Intelligence</div>
-        <div class="phase-desc">Studio integration · Duplicate detection · Catalog chat agent</div>
+        <div class="phase-desc">Studio sync · Duplicate detection · Catalog chat</div>
       </div>
-
       <div class="phase-item">
         <div class="phase-badge planned">Planned</div>
         <div class="phase-name">Phase 4 — Enterprise</div>
-        <div class="phase-desc">Multi-tenant · SSO · On-premise · SLA tiers</div>
+        <div class="phase-desc">SSO · Multi-tenant · SLA tiers · On-premise</div>
       </div>
     </div>
   </aside>
@@ -80,51 +122,129 @@
     <!-- Header -->
     <header class="header">
       <div class="header-brand">
-        <div class="header-logo">k9x</div>
-        <div class="header-sub">Repository — Phase 1</div>
+        <a class="header-logo" href="https://k9x.ai" target="_blank" rel="noopener" style="text-decoration:none">k9x</a>
+        <div class="header-sub">Repository</div>
       </div>
+
+      <!-- Main nav -->
+      <nav class="main-nav">
+        <div class="nav-item">
+          <button class="nav-btn active" id="nav-catalog">Catalog</button>
+          <div class="nav-dropdown">
+            <div class="nav-dd-item" onclick="switchTab('sbbs')">SBBs</div>
+            <div class="nav-dd-item" onclick="switchTab('abbs')">ABBs</div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <button class="nav-btn" id="nav-apps" onclick="switchTab('apps')">Applications</button>
+        </div>
+        <div class="nav-item admin-only">
+          <button class="nav-btn" id="nav-account">Account Management</button>
+          <div class="nav-dropdown">
+            <div class="nav-dd-item" onclick="switchTab('review')">
+              Review Queue <span id="review-nav-badge" class="review-nav-badge" style="display:none">0</span>
+            </div>
+            <div class="nav-dd-item" onclick="switchTab('users')">Users</div>
+            <div class="nav-dd-item nav-dd-soon">Groups <span class="soon-badge">soon</span></div>
+            <div class="nav-dd-item" onclick="switchTab('projects')">Projects</div>
+          </div>
+        </div>
+      </nav>
+
       <div class="header-actions">
+        <div id="user-chip" class="user-chip" style="display:none">
+          <span id="user-chip-name"></span>
+          <span id="user-chip-role" class="user-chip-role"></span>
+          <div class="user-chip-dropdown" id="user-chip-dropdown">
+            <div class="ucd-item" id="admin-toggle-btn"></div>
+          </div>
+        </div>
+        <button id="help-btn" class="icon-btn" title="Help">?</button>
         <button id="theme-btn" class="theme-toggle" title="Toggle theme">🌙</button>
       </div>
     </header>
 
     <!-- Content -->
     <div class="content">
-      <div class="topbar">
-        <h1>SBB Catalog</h1>
-        <div class="topbar-right">
-          <button id="publish-btn" class="btn btn-primary">+ Publish SBB</button>
+
+      <!-- ── SBBs panel ──────────────────────────────────────────────────── -->
+      <div id="panel-sbbs" class="tab-panel active">
+        <div class="topbar">
+          <h1>SBB Catalog</h1>
+          <div class="topbar-right">
+            <button id="publish-btn" class="btn btn-primary admin-only">+ Publish SBB</button>
+          </div>
         </div>
+        <div class="stats" id="sbb-stats">
+          <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total SBBs</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-published" style="color:var(--success)">—</div><div class="stat-label">Published</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-promoted" style="color:var(--promoted)">—</div><div class="stat-label">Promoted</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-inspect" style="color:var(--accent)">—</div><div class="stat-label">Inspect Passed</div></div>
+        </div>
+        <div id="sbb-grid" class="sbb-grid"></div>
       </div>
 
-      <!-- Stats -->
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-value" id="stat-total">—</div>
-          <div class="stat-label">Total SBBs</div>
+      <!-- ── ABBs panel ──────────────────────────────────────────────────── -->
+      <div id="panel-abbs" class="tab-panel">
+        <div class="topbar">
+          <h1>ABB Contracts</h1>
+          <div class="topbar-right">
+            <span id="abb-count" class="stat-chip">—</span>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-published" style="color:var(--success)">—</div>
-          <div class="stat-label">Published</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-promoted" style="color:var(--promoted)">—</div>
-          <div class="stat-label">Promoted</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-inspect" style="color:var(--accent)">—</div>
-          <div class="stat-label">Inspect Passed</div>
-        </div>
+        <div id="abb-grid" class="abb-catalog-grid"></div>
       </div>
 
-      <!-- SBB Grid -->
-      <div id="sbb-grid" class="sbb-grid"></div>
-    </div>
+      <!-- ── Applications panel ─────────────────────────────────────────── -->
+      <div id="panel-apps" class="tab-panel">
+        <div class="topbar">
+          <h1>Application Catalog</h1>
+          <div class="topbar-right">
+            <button id="register-app-btn" class="btn btn-primary admin-only">+ Register App</button>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat-card"><div class="stat-value" id="stat-apps-total">—</div><div class="stat-label">Total Apps</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-apps-production" style="color:var(--success)">—</div><div class="stat-label">Production</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-apps-active" style="color:var(--warning)">—</div><div class="stat-label">Active</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-apps-poc" style="color:var(--accent)">—</div><div class="stat-label">POC</div></div>
+        </div>
+        <div id="app-grid" class="sbb-grid"></div>
+      </div>
 
-  </div>
-</div>
+      <!-- ── Users panel ────────────────────────────────────────────────── -->
+      <div id="panel-users" class="tab-panel">
+        <div class="topbar">
+          <h1>Users &amp; Roles</h1>
+          <div class="topbar-right">
+            <button id="add-user-btn" class="btn btn-primary admin-only">+ Add User</button>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat-card"><div class="stat-value" id="stat-users-total">—</div><div class="stat-label">Total Users</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-users-admin" style="color:var(--danger)">—</div><div class="stat-label">Admins</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-users-dev" style="color:var(--accent)">—</div><div class="stat-label">Developers</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-users-analyst" style="color:var(--success)">—</div><div class="stat-label">Analysts</div></div>
+        </div>
+        <div id="user-grid" class="user-grid"></div>
+      </div>
 
-<!-- Publish Modal -->
+      <!-- ── Review Queue panel ─────────────────────────────────────────── -->
+      <div id="panel-review" class="tab-panel">
+        <div class="topbar">
+          <h1>SBB Review Queue</h1>
+          <div class="topbar-right">
+            <span id="review-queue-count" class="stat-chip">— pending</span>
+          </div>
+        </div>
+        <div id="review-queue-list"></div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ── Publish SBB Modal ──────────────────────────────────────────────────── -->
 <div id="publish-modal" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">Publish SBB</div>
@@ -146,12 +266,10 @@
           </select>
         </div>
       </div>
-
       <div class="form-group">
         <label class="form-label">Description</label>
         <textarea id="f-desc" class="form-textarea" placeholder="What this SBB does…"></textarea>
       </div>
-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Domain</label>
@@ -162,47 +280,260 @@
           <input id="f-version" class="form-input" placeholder="1.0.0" />
         </div>
       </div>
-
       <div class="form-group">
-        <label class="form-label">ABB Contract</label>
-        <select id="f-abb" class="form-select"></select>
+        <label class="form-label">ABB Contracts <span style="font-weight:400;color:var(--text-muted)">(select all that apply)</span></label>
+        <div id="f-abb-list" class="abb-checkbox-list"></div>
+        <div style="margin-top:8px">
+          <label class="form-label" style="font-size:0.78rem;color:var(--text-muted)">Custom / New ABB <span style="font-weight:400">(not in list above — e.g. BaseMLModel, BaseMCP, BaseDatabase)</span></label>
+          <input id="f-abb-custom" class="form-input" placeholder="comma-separated custom ABB names" />
+        </div>
       </div>
-
       <div class="form-group">
         <label class="form-label">Tags</label>
         <input id="f-tags" class="form-input" placeholder="triage, llm, reasoning" />
         <div class="form-hint">Comma-separated</div>
       </div>
-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Published by</label>
-          <input id="f-author" class="form-input" placeholder="ravi.natarajan@ibm.com" />
+          <input id="f-author" class="form-input" placeholder="PM or product owner" />
         </div>
         <div class="form-group">
-          <label class="form-label">Project</label>
-          <input id="f-project" class="form-input" placeholder="EOC" />
+          <label class="form-label">Technical Lead</label>
+          <input id="f-tech-lead" class="form-input" placeholder="Engineer / architect" />
         </div>
       </div>
-
+      <div class="form-group">
+        <label class="form-label">Project</label>
+        <input id="f-project" class="form-input" placeholder="EOC" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Source Code URL</label>
+        <input id="f-git-ref" class="form-input" placeholder="https://github.com/org/repo  or  bitbucket / ADO link" />
+        <div class="form-hint">Git, Bitbucket, Azure DevOps, GitLab — any URL</div>
+      </div>
       <div class="form-check">
         <input type="checkbox" id="f-inspect" />
         <label for="f-inspect">k9aif inspect passed — SBB complies with ABB contract</label>
       </div>
-
+      <div class="form-check">
+        <input type="checkbox" id="f-manager-approved" required />
+        <label for="f-manager-approved">My manager has reviewed and approved this submission</label>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeModal('publish-modal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Publish</button>
+        <button type="submit" class="btn btn-primary">Submit for Review</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Detail Modal -->
+<!-- ── Reject SBB Modal ───────────────────────────────────────────────────── -->
+<div id="reject-modal" class="modal-overlay">
+  <div class="modal" style="width:460px">
+    <div class="modal-title">Reject SBB</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+      Give the submitter a clear, actionable reason so they can fix and resubmit.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Reason *</label>
+      <textarea id="reject-reason-input" class="form-textarea" style="min-height:100px"
+        placeholder="e.g. ABB contract mismatch — this is an Agent, not an Orchestrator. Please re-inspect with correct ABB and resubmit."></textarea>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('reject-modal')">Cancel</button>
+      <button type="button" class="btn btn-danger" onclick="submitReject()">Reject Submission</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Register Application Modal ────────────────────────────────────────── -->
+<div id="app-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Register Application</div>
+    <form id="app-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input id="a-name" class="form-input" required placeholder="My k9x App" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="a-status" class="form-select">
+            <option value="poc">POC</option>
+            <option value="active">Active</option>
+            <option value="production">Production</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="a-desc" class="form-textarea" placeholder="What this application does…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Domain</label>
+          <input id="a-domain" class="form-input" placeholder="insurance / healthcare" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">k9-aif version</label>
+          <input id="a-version" class="form-input" placeholder="1.2.6" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Project</label>
+          <input id="a-project" class="form-input" placeholder="EOC" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input id="a-department" class="form-input" placeholder="AI &amp; Automation" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Team</label>
+          <input id="a-team" class="form-input" placeholder="Professional Services" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contact</label>
+          <input id="a-contact" class="form-input" placeholder="you@k9x.ai" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project URL</label>
+        <input id="a-url" class="form-input" type="url" placeholder="https://intranet/my-app" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">SBBs Used</label>
+        <input id="a-sbbs" class="form-input" placeholder="K9ChatAgent, ZeroTrustOrchestrator" />
+        <div class="form-hint">Comma-separated SBB names from the catalog</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <input id="a-tags" class="form-input" placeholder="insurance, llm, kafka" />
+        <div class="form-hint">Comma-separated</div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('app-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Register</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Add User Modal ─────────────────────────────────────────────────────── -->
+<div id="user-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Add User</div>
+    <form id="user-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input id="u-name" class="form-input" required placeholder="Jane Smith" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select id="u-role" class="form-select">
+            <option value="developer">Developer</option>
+            <option value="analyst">Analyst</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Work Email *</label>
+          <input id="u-email" class="form-input" type="email" required placeholder="jane@k9x.ai" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input id="u-phone" class="form-input" placeholder="+1 555 000 0000" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input id="u-department" class="form-input" placeholder="AI &amp; Automation" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Team</label>
+          <input id="u-team" class="form-input" placeholder="Platform Engineering" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Manager</label>
+          <input id="u-manager" class="form-input" placeholder="manager@k9x.ai" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project</label>
+          <input id="u-project" class="form-input" placeholder="EOC" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Application</label>
+        <input id="u-application" class="form-input" placeholder="K9 Chat" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input id="u-password" class="form-input" type="password" required placeholder="Temporary password" />
+        <div class="form-hint">User should change this on first login</div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('user-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Detail Modal (SBB / ABB / App / User) ─────────────────────────────── -->
 <div id="detail-modal" class="modal-overlay">
   <div class="modal">
     <div class="modal-title" id="detail-title"></div>
     <div id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ── Help Modal ────────────────────────────────────────────────────────── -->
+<div id="help-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">k9x Continuum — Help</div>
+    <div class="help-body">
+      <div class="help-section">
+        <h3>What is k9x Continuum?</h3>
+        <p>A governed catalog of Architecture Building Blocks (ABBs) and Solution Building Blocks (SBBs) built with k9-aif. Track who built what, which ABB contracts they implement, and which applications use them.</p>
+      </div>
+      <div class="help-section">
+        <h3>Tabs</h3>
+        <div class="help-row"><span class="help-chip">SBBs</span> Browse and publish reusable agent/squad/orchestrator components</div>
+        <div class="help-row"><span class="help-chip">ABBs</span> View the contract catalog — Foundation and Common Systems building blocks</div>
+        <div class="help-row"><span class="help-chip">Applications</span> Register apps that use k9-aif — track adoption across projects</div>
+        <div class="help-row"><span class="help-chip">Users</span> Manage team members and their roles</div>
+      </div>
+      <div class="help-section">
+        <h3>Roles</h3>
+        <div class="help-row"><span class="help-chip chip-admin">Admin</span> Full access — manage users, promote SBBs, delete anything</div>
+        <div class="help-row"><span class="help-chip chip-dev">Developer</span> Publish SBBs, register apps, browse catalog</div>
+        <div class="help-row"><span class="help-chip chip-analyst">Analyst</span> Browse and search only — no publish or delete</div>
+      </div>
+      <div class="help-section">
+        <h3>Inspect Gate</h3>
+        <p>An SBB cannot be published unless <strong>k9aif inspect</strong> has passed — confirming it complies with its ABB contract. Only published SBBs can be promoted to the shared catalog.</p>
+      </div>
+      <div class="help-section">
+        <h3>Continuum Levels</h3>
+        <div class="help-row"><span class="help-chip">Foundation</span> Core ABBs — BaseAgent, BaseOrchestrator, BaseSquad…</div>
+        <div class="help-row"><span class="help-chip">Common Systems</span> OOB loop agents — K9ValidationLoopAgent, K9PlanningLoopAgent…</div>
+        <div class="help-row"><span class="help-chip">Industry</span> Domain-specific reusable patterns (coming)</div>
+        <div class="help-row"><span class="help-chip">Org Specific</span> Your internal IP registered here</div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="closeModal('help-modal')">Close</button>
+    </div>
   </div>
 </div>
 

@@ -4,8 +4,8 @@ const API = "";
 let activeTab = "sbbs";
 let currentUser = null;
 let isAdminMode = true;
-let allSBBs = [], allABBs = [], allApps = [], allUsers = [], allPending = [];
-let pendingRejectId = null;
+let allSBBs = [], allABBs = [], allApps = [], allUsers = [], allPending = [], allPendingApps = [];
+let pendingRejectId = null, pendingRejectType = null;
 let activeSBBFilter = { abb: null, kind: "", status: "", search: "" };
 // These three are always present in every k9-aif solution — filtering by them is noise
 const INFRA_ABBS = new Set(["BaseRouter", "BaseOrchestrator", "BaseSquad"]);
@@ -64,12 +64,13 @@ function switchTab(tab) {
   // close any open nav dropdowns
   document.querySelectorAll(".nav-item.open").forEach(i => i.classList.remove("open"));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `panel-${tab}`));
-  document.getElementById("sidebar-sbbs").style.display     = tab === "sbbs"     ? "" : "none";
-  document.getElementById("sidebar-abbs").style.display     = tab === "abbs"     ? "" : "none";
-  document.getElementById("sidebar-apps").style.display     = tab === "apps"     ? "" : "none";
-  document.getElementById("sidebar-users").style.display    = tab === "users"    ? "" : "none";
-  document.getElementById("sidebar-review").style.display   = tab === "review"   ? "" : "none";
-  document.getElementById("sidebar-abb-list").style.display = tab === "sbbs"     ? "" : "none";
+  document.getElementById("sidebar-sbbs").style.display       = tab === "sbbs"       ? "" : "none";
+  document.getElementById("sidebar-abbs").style.display       = tab === "abbs"       ? "" : "none";
+  document.getElementById("sidebar-apps").style.display       = tab === "apps"       ? "" : "none";
+  document.getElementById("sidebar-users").style.display      = tab === "users"      ? "" : "none";
+  document.getElementById("sidebar-review").style.display     = tab === "review"     ? "" : "none";
+  document.getElementById("sidebar-app-review").style.display = tab === "app-review" ? "" : "none";
+  document.getElementById("sidebar-abb-list").style.display   = tab === "sbbs"       ? "" : "none";
   document.getElementById("search-input").placeholder =
     tab === "sbbs"   ? "Search SBBs…"         :
     tab === "abbs"   ? "Search ABBs…"          :
@@ -78,7 +79,7 @@ function switchTab(tab) {
   const catalogTabs = ["sbbs", "abbs"];
   document.getElementById("nav-catalog")?.classList.toggle("active", catalogTabs.includes(tab));
   document.getElementById("nav-apps")?.classList.toggle("active", tab === "apps");
-  document.getElementById("nav-review")?.classList.toggle("active", tab === "review");
+  document.getElementById("nav-review")?.classList.toggle("active", ["review","app-review"].includes(tab));
   render();
 }
 
@@ -91,7 +92,7 @@ function switchTabFromChip(tab) {
 function toggleAdminMode() {
   isAdminMode = !isAdminMode;
   applyAdminMode();
-  if (!isAdminMode && ["users","projects","groups","review"].includes(activeTab)) switchTab("sbbs");
+  if (!isAdminMode && ["users","projects","groups","review","app-review"].includes(activeTab)) switchTab("sbbs");
 }
 
 function applyAdminMode() {
@@ -110,11 +111,12 @@ function applyAdminMode() {
 }
 
 function render() {
-  if (activeTab === "sbbs")   renderSBBGrid();
-  if (activeTab === "abbs")   renderABBGrid();
-  if (activeTab === "apps")   renderAppGrid();
-  if (activeTab === "users")  renderUserGrid();
-  if (activeTab === "review") renderReviewQueue();
+  if (activeTab === "sbbs")       renderSBBGrid();
+  if (activeTab === "abbs")       renderABBGrid();
+  if (activeTab === "apps")       renderAppGrid();
+  if (activeTab === "users")      renderUserGrid();
+  if (activeTab === "review")     renderReviewQueue();
+  if (activeTab === "app-review") renderAppReviewQueue();
 }
 
 // ── SBBs ───────────────────────────────────────────────────────────────────
@@ -619,12 +621,65 @@ async function deleteUser(id) {
 // ── Review Queue ───────────────────────────────────────────────────────────
 async function loadReviewQueue() {
   allPending = await fetchJSON(`${API}/api/v1/sbbs/review-queue`);
-  const count = allPending.length;
-  const badge = document.getElementById("review-nav-badge");
-  if (badge) { badge.textContent = count; badge.style.display = count > 0 ? "" : "none"; }
   const chip = document.getElementById("review-queue-count");
-  if (chip) chip.textContent = `${count} pending`;
+  if (chip) chip.textContent = `${allPending.length} pending`;
+  updateReviewBadge();
   if (activeTab === "review") renderReviewQueue();
+}
+
+async function loadAppReviewQueue() {
+  allPendingApps = await fetchJSON(`${API}/api/v1/applications/review-queue`);
+  const chip = document.getElementById("app-review-queue-count");
+  if (chip) chip.textContent = `${allPendingApps.length} pending`;
+  updateReviewBadge();
+  if (activeTab === "app-review") renderAppReviewQueue();
+}
+
+function updateReviewBadge() {
+  const total = allPending.length + allPendingApps.length;
+  const badge = document.getElementById("review-nav-badge");
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? "" : "none"; }
+}
+
+function renderAppReviewQueue() {
+  const list = document.getElementById("app-review-queue-list");
+  if (!list) return;
+  if (!allPendingApps.length) { list.innerHTML = emptyState("✅", "No applications pending review."); return; }
+  list.innerHTML = "";
+  allPendingApps.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "review-row";
+    div.innerHTML = `
+      <div class="review-row-header">
+        <div class="review-row-name">${a.name}</div>
+        ${a.domain ? badge("badge-domain", a.domain) : ""}
+      </div>
+      ${a.description ? `<div class="review-row-desc">${a.description}</div>` : ""}
+      <div class="review-row-grid">
+        ${detailItem("Contact",    a.contact    || "—")}
+        ${detailItem("Team",       a.team       || "—")}
+        ${detailItem("Department", a.department || "—")}
+        ${detailItem("Project",    a.project    || "—")}
+        ${detailItem("k9-aif ver", a.k9aif_version || "—")}
+        ${detailItem("Submitted",  fmtDate(a.created_at))}
+        ${a.url ? `<div class="review-detail-item"><span class="review-detail-key">URL</span><span class="review-detail-val"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      </div>
+      ${(a.sbbs_used||[]).length ? `<div class="review-row-meta">${(a.sbbs_used).map(s => badge("badge-abb", s)).join("")}</div>` : ""}
+      <div class="review-row-actions">
+        <button class="btn btn-primary btn-sm" onclick="approveApp(${a.id})">Approve → POC</button>
+        <button class="btn btn-danger btn-sm"  onclick="openRejectModal(${a.id}, 'app')">Reject</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function approveApp(id) {
+  const actor = currentUser?.email || null;
+  try {
+    await patchJSON(`${API}/api/v1/applications/${id}/approve?actor=${encodeURIComponent(actor || "")}`);
+    toast("Application approved and added to catalog");
+    await Promise.all([loadApps(), loadAppReviewQueue()]);
+  } catch(err) { toast(err.message, "error"); }
 }
 
 function renderReviewQueue() {
@@ -680,8 +735,9 @@ async function approveSBB(id) {
   } catch(err) { toast(err.message, "error"); }
 }
 
-function openRejectModal(id) {
-  pendingRejectId = id;
+function openRejectModal(id, type = "sbb") {
+  pendingRejectId   = id;
+  pendingRejectType = type;
   document.getElementById("reject-reason-input").value = "";
   openModal("reject-modal");
 }
@@ -689,13 +745,21 @@ function openRejectModal(id) {
 async function submitReject() {
   const reason = document.getElementById("reject-reason-input").value.trim();
   if (!reason) { toast("Please provide a rejection reason", "error"); return; }
-  const actor = currentUser?.email || null;
+  const actor  = currentUser?.email || null;
+  const params = `actor=${encodeURIComponent(actor || "")}&reason=${encodeURIComponent(reason)}`;
   try {
-    await patchJSON(`${API}/api/v1/sbbs/${pendingRejectId}/reject?actor=${encodeURIComponent(actor || "")}&reason=${encodeURIComponent(reason)}`);
-    toast("SBB rejected");
+    if (pendingRejectType === "app") {
+      await patchJSON(`${API}/api/v1/applications/${pendingRejectId}/reject?${params}`);
+      toast("Application rejected");
+      await loadAppReviewQueue();
+    } else {
+      await patchJSON(`${API}/api/v1/sbbs/${pendingRejectId}/reject?${params}`);
+      toast("SBB rejected");
+      await loadReviewQueue();
+    }
     closeModal("reject-modal");
-    pendingRejectId = null;
-    await loadReviewQueue();
+    pendingRejectId   = null;
+    pendingRejectType = null;
   } catch(err) { toast(err.message, "error"); }
 }
 
@@ -797,7 +861,7 @@ async function init() {
     document.querySelectorAll(".nav-item.open").forEach(i => i.classList.remove("open"));
   });
 
-  await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue()]);
+  await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue(), loadAppReviewQueue()]);
   renderABBList();
 }
 

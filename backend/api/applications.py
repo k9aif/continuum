@@ -11,6 +11,47 @@ def _log(db, entity_id, action, actor=None, note=None):
     db.add(AuditLog(entity="app", entity_id=entity_id, action=action, actor=actor, note=note))
 
 
+# ── Review queue (before /{app_id}) ──────────────────────────────────────────
+
+@router.get("/review-queue", response_model=List[ApplicationOut])
+def app_review_queue(db: Session = Depends(get_db)):
+    return (db.query(Application)
+              .filter(Application.status == "pending_review")
+              .order_by(Application.created_at.asc())
+              .all())
+
+
+@router.patch("/{app_id}/approve", response_model=ApplicationOut)
+def approve_app(app_id: int, actor: Optional[str] = None, db: Session = Depends(get_db)):
+    app = db.query(Application).filter(Application.id == app_id).first()
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.status != "pending_review":
+        raise HTTPException(422, "Only pending_review applications can be approved")
+    app.status = "poc"
+    _log(db, app.id, "approved", actor=actor)
+    db.commit()
+    db.refresh(app)
+    return app
+
+
+@router.patch("/{app_id}/reject", response_model=ApplicationOut)
+def reject_app(app_id: int, actor: Optional[str] = None, reason: Optional[str] = None,
+               db: Session = Depends(get_db)):
+    app = db.query(Application).filter(Application.id == app_id).first()
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.status != "pending_review":
+        raise HTTPException(422, "Only pending_review applications can be rejected")
+    app.status = "rejected"
+    _log(db, app.id, "rejected", actor=actor, note=reason)
+    db.commit()
+    db.refresh(app)
+    return app
+
+
+# ── Standard CRUD ─────────────────────────────────────────────────────────────
+
 @router.get("", response_model=List[ApplicationOut])
 def list_apps(
     search: Optional[str] = None,
@@ -41,10 +82,12 @@ def get_app(app_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ApplicationOut, status_code=201)
 def register_app(payload: ApplicationCreate, db: Session = Depends(get_db)):
-    app = Application(**payload.model_dump())
+    data = payload.model_dump()
+    data["status"] = "pending_review"
+    app = Application(**data)
     db.add(app)
     db.flush()
-    _log(db, app.id, "registered", actor=payload.contact)
+    _log(db, app.id, "submitted", actor=payload.contact)
     db.commit()
     db.refresh(app)
     return app

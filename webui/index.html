@@ -164,7 +164,10 @@
       <!-- Main nav -->
       <nav class="main-nav">
         <div class="nav-item">
-          <button class="nav-btn active" id="nav-catalog">Catalog</button>
+          <button class="nav-btn active" id="nav-continuum" onclick="switchTab('continuum')">Continuum</button>
+        </div>
+        <div class="nav-item">
+          <button class="nav-btn" id="nav-catalog">Catalog</button>
           <div class="nav-dropdown">
             <div class="nav-dd-item" onclick="switchTab('abbs')">ABB</div>
             <div class="nav-dd-item" onclick="switchTab('sbbs')">SBB</div>
@@ -172,9 +175,6 @@
         </div>
         <div class="nav-item">
           <button class="nav-btn" id="nav-apps" onclick="switchTab('apps')">Applications</button>
-        </div>
-        <div class="nav-item">
-          <button class="nav-btn" id="nav-continuum" onclick="switchTab('continuum')">Continuum</button>
         </div>
         <div class="nav-item admin-only">
           <button class="nav-btn" id="nav-review">
@@ -215,7 +215,7 @@
     <div class="content">
 
       <!-- ── SBBs panel ──────────────────────────────────────────────────── -->
-      <div id="panel-sbbs" class="tab-panel active">
+      <div id="panel-sbbs" class="tab-panel">
         <div class="topbar">
           <h1>SBB Catalog</h1>
           <div class="topbar-right">
@@ -260,7 +260,7 @@
       </div>
 
       <!-- ── Enterprise Continuum panel ──────────────────────────────────── -->
-      <div id="panel-continuum" class="tab-panel">
+      <div id="panel-continuum" class="tab-panel active">
         <div class="topbar">
           <h1>Enterprise Continuum</h1>
           <div class="topbar-right">

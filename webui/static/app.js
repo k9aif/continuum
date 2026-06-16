@@ -1,7 +1,7 @@
 /* k9x Repository — Phase 1 + 2 */
 
 const API = "";
-let activeTab = "sbbs";
+let activeTab = "continuum";
 let currentUser = null;
 let isAdminMode = false;
 let allSBBs = [], allABBs = [], allApps = [], allUsers = [], allPending = [], allPendingApps = [];
@@ -1272,7 +1272,7 @@ function logout() {
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
   isAdminMode = false;
-  allPending = []; allPendingApps = []; allPendingUsers = [];
+  allPending = []; allPendingApps = []; allPendingUsers = []; allPendingUsers = [];
   document.getElementById("user-chip-dropdown")?.classList.remove("open");
   document.getElementById("login-email").value = "";
   document.getElementById("login-password").value = "";
@@ -1349,6 +1349,7 @@ async function init() {
   renderCurrentUser();
   await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue()]);
   renderABBList();
+  renderContinuum();
 }
 
 document.addEventListener("DOMContentLoaded", init);

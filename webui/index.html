@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>k9x Repository</title>
+  <link rel="stylesheet" href="/static/app.css?v=1" />
+  <script src="/static/app.js?v=1" defer></script>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>k9x Repository</h2>
+      <p>Agentic SBB &amp; ABB Catalog</p>
+    </div>
+
+    <div class="search-wrap">
+      <input id="search-input" class="search-input" type="search" placeholder="Search SBBs…" />
+    </div>
+
+    <div class="filters">
+      <div class="filter-label">Filters</div>
+      <select id="filter-kind" class="filter-select">
+        <option value="">All kinds</option>
+        <option value="Agent">Agent</option>
+        <option value="Orchestrator">Orchestrator</option>
+        <option value="Squad">Squad</option>
+        <option value="Router">Router</option>
+        <option value="Adapter">Adapter</option>
+      </select>
+      <select id="filter-status" class="filter-select">
+        <option value="">All statuses</option>
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+        <option value="promoted">Promoted</option>
+      </select>
+    </div>
+
+    <div class="abb-section">
+      <div class="abb-section-label">ABB Contracts</div>
+      <div id="abb-list"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="header-logo">k9x</div>
+        <div class="header-sub">Repository — Phase 1</div>
+      </div>
+      <div class="header-actions">
+        <button id="theme-btn" class="theme-toggle" title="Toggle theme">🌙</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="topbar">
+        <h1>SBB Catalog</h1>
+        <div class="topbar-right">
+          <button id="publish-btn" class="btn btn-primary">+ Publish SBB</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total SBBs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-published" style="color:var(--success)">—</div>
+          <div class="stat-label">Published</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-promoted" style="color:var(--promoted)">—</div>
+          <div class="stat-label">Promoted</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-inspect" style="color:var(--accent)">—</div>
+          <div class="stat-label">Inspect Passed</div>
+        </div>
+      </div>
+
+      <!-- SBB Grid -->
+      <div id="sbb-grid" class="sbb-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Publish Modal -->
+<div id="publish-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Publish SBB</div>
+    <form id="publish-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input id="f-name" class="form-input" required placeholder="ClaimsTriageAgent" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kind *</label>
+          <select id="f-kind" class="form-select" required>
+            <option value="">—</option>
+            <option value="Agent">Agent</option>
+            <option value="Orchestrator">Orchestrator</option>
+            <option value="Squad">Squad</option>
+            <option value="Router">Router</option>
+            <option value="Adapter">Adapter</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="f-desc" class="form-textarea" placeholder="What this SBB does…"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Domain</label>
+          <input id="f-domain" class="form-input" placeholder="insurance / finance / healthcare" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Version</label>
+          <input id="f-version" class="form-input" placeholder="1.0.0" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ABB Contract</label>
+        <select id="f-abb" class="form-select"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <input id="f-tags" class="form-input" placeholder="triage, llm, reasoning" />
+        <div class="form-hint">Comma-separated</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Published by</label>
+          <input id="f-author" class="form-input" placeholder="ravi.natarajan@ibm.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project</label>
+          <input id="f-project" class="form-input" placeholder="EOC" />
+        </div>
+      </div>
+
+      <div class="form-check">
+        <input type="checkbox" id="f-inspect" />
+        <label for="f-inspect">k9aif inspect passed — SBB complies with ABB contract</label>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('publish-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Publish</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detail-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="detail-title"></div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+</body>
+</html>

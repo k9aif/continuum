@@ -7,8 +7,8 @@ load_dotenv()
 
 _HOST   = os.getenv("POSTGRES_HOST", "localhost")
 _PORT   = os.getenv("POSTGRES_PORT", "5432")
-_DB     = os.getenv("POSTGRES_DB", "k9aif")
-_USER   = os.getenv("POSTGRES_USER", "k9aif")
+_DB     = os.getenv("POSTGRES_DB", "k9x")
+_USER   = os.getenv("POSTGRES_USER", "postgres")
 _PASS   = os.getenv("POSTGRES_PASSWORD", "")
 SCHEMA  = os.getenv("POSTGRES_SCHEMA", "k9repo")
 

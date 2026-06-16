@@ -861,6 +861,10 @@ function renderContinuum() {
       </div>`;
 
     // ABBs
+    const abbHints = {
+      Industry:    "Register vertical ABBs here — eTOM, BIAN, ARTS reference models, or your firm's industry patterns.",
+      OrgSpecific: "Enterprise-specific ABBs promoted from shared SBBs — your org's IP that other teams can implement.",
+    };
     let abbHtml = abbs.length
       ? abbs.map(a => `
           <div class="ec-abb-card" onclick="openABBById(${a.id})">
@@ -869,7 +873,7 @@ function renderContinuum() {
             ${a.module ? `<div class="ec-abb-module">${a.module}</div>` : ""}
           </div>`).join("")
       : `<div class="ec-empty-col">
-           <span class="ec-empty-hint">No ${meta.label} ABBs yet</span>
+           <span class="ec-empty-hint">${abbHints[level] || "No ABBs registered"}</span>
            ${["Industry","OrgSpecific"].includes(level) ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('abbs')">+ Register ABB</button>` : ""}
          </div>`;
 
@@ -895,10 +899,16 @@ function renderContinuum() {
         </div>`).join("");
     }
     if (!sbbs.length && !apps.length) {
+      const hints = {
+        Foundation:    "Generic, domain-free SBBs live here — reference implementations that any team can extend. As patterns mature, they become candidates for ABB elevation.",
+        CommonSystems: "Cross-industry SBBs implementing OOB k9-aif patterns — K9ValidationLoopAgent, K9PlanningLoopAgent, BaseCriticActorAgent. The k9_agents/ library lives here.",
+        Industry:      "Domain-specific SBBs tagged with a vertical — insurance, finance, healthcare, defense. Publish an SBB with a domain tag to appear here.",
+        OrgSpecific:   "Deployed applications and org-specific SBBs appear here. Register an application to track your k9-aif adoption.",
+      };
       const action = level === "OrgSpecific"
-        ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('apps')">+ Register App</button>`
-        : `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="switchTab('sbbs')">+ Publish SBB</button>`;
-      sbbHtml = `<div class="ec-empty-col"><span class="ec-empty-hint">No implementations yet</span>${action}</div>`;
+        ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="switchTab('apps')">+ Register App</button>`
+        : `<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="switchTab('sbbs')">+ Publish SBB</button>`;
+      sbbHtml = `<div class="ec-empty-col"><span class="ec-empty-hint">${hints[level]}</span>${action}</div>`;
     }
 
     row.innerHTML = `

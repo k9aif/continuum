@@ -13,11 +13,18 @@ def _hash(password: str) -> str:
 
 
 @router.get("", response_model=List[UserOut])
-def list_users(role: Optional[str] = None, db: Session = Depends(get_db)):
+def list_users(role: Optional[str] = None, active: Optional[bool] = None, db: Session = Depends(get_db)):
     q = db.query(User)
-    if role:
+    if role is not None:
         q = q.filter(User.role == role)
+    if active is not None:
+        q = q.filter(User.is_active == active)
     return q.order_by(User.name).all()
+
+
+@router.get("/pending", response_model=List[UserOut])
+def pending_registrations(db: Session = Depends(get_db)):
+    return db.query(User).filter(User.is_active == False).order_by(User.created_at.asc()).all()
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -61,6 +68,28 @@ def update_user(user_id: int, payload: UserCreate, db: Session = Depends(get_db)
     user.role  = payload.role
     if payload.password:
         user.password_hash = _hash(payload.password)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/{user_id}/activate", response_model=UserOut)
+def activate_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/{user_id}/deactivate", response_model=UserOut)
+def deactivate_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = False
     db.commit()
     db.refresh(user)
     return user

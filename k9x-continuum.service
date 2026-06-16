@@ -1,0 +1,16 @@
+[Unit]
+Description=K9x Continuum FastAPI Service
+After=network.target
+
+[Service]
+User=ravinata
+Group=ravinata
+WorkingDirectory=/opt/k9x_continuum
+EnvironmentFile=/etc/k9x-continuum.env
+Environment="PATH=/opt/k9x_continuum/.venv/bin"
+ExecStart=/opt/k9x_continuum/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8085
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

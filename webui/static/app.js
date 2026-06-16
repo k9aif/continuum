@@ -3,9 +3,10 @@
 const API = "";
 let activeTab = "sbbs";
 let currentUser = null;
-let isAdminMode = true;
+let isAdminMode = false;
 let allSBBs = [], allABBs = [], allApps = [], allUsers = [], allPending = [], allPendingApps = [];
 let pendingRejectId = null, pendingRejectType = null;
+let dashPeriod = 30, dashData = null;
 let activeSBBFilter = { abb: null, kind: "", status: "", search: "" };
 // These three are always present in every k9-aif solution — filtering by them is noise
 const INFRA_ABBS = new Set(["BaseRouter", "BaseOrchestrator", "BaseSquad"]);
@@ -64,13 +65,15 @@ function switchTab(tab) {
   // close any open nav dropdowns
   document.querySelectorAll(".nav-item.open").forEach(i => i.classList.remove("open"));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `panel-${tab}`));
-  document.getElementById("sidebar-sbbs").style.display       = tab === "sbbs"       ? "" : "none";
-  document.getElementById("sidebar-abbs").style.display       = tab === "abbs"       ? "" : "none";
-  document.getElementById("sidebar-apps").style.display       = tab === "apps"       ? "" : "none";
-  document.getElementById("sidebar-users").style.display      = tab === "users"      ? "" : "none";
-  document.getElementById("sidebar-review").style.display     = tab === "review"     ? "" : "none";
-  document.getElementById("sidebar-app-review").style.display = tab === "app-review" ? "" : "none";
-  document.getElementById("sidebar-abb-list").style.display   = tab === "sbbs"       ? "" : "none";
+  document.getElementById("sidebar-sbbs").style.display        = tab === "sbbs"       ? "" : "none";
+  document.getElementById("sidebar-abbs").style.display        = tab === "abbs"       ? "" : "none";
+  document.getElementById("sidebar-apps").style.display        = tab === "apps"       ? "" : "none";
+  document.getElementById("sidebar-users").style.display       = tab === "users"      ? "" : "none";
+  document.getElementById("sidebar-review").style.display      = tab === "review"      ? "" : "none";
+  document.getElementById("sidebar-app-review").style.display  = tab === "app-review"  ? "" : "none";
+  document.getElementById("sidebar-user-review").style.display = tab === "user-review" ? "" : "none";
+  document.getElementById("sidebar-dashboard").style.display   = tab === "dashboard"   ? "" : "none";
+  document.getElementById("sidebar-abb-list").style.display    = tab === "sbbs"        ? "" : "none";
   document.getElementById("search-input").placeholder =
     tab === "sbbs"   ? "Search SBBs…"         :
     tab === "abbs"   ? "Search ABBs…"          :
@@ -79,7 +82,9 @@ function switchTab(tab) {
   const catalogTabs = ["sbbs", "abbs"];
   document.getElementById("nav-catalog")?.classList.toggle("active", catalogTabs.includes(tab));
   document.getElementById("nav-apps")?.classList.toggle("active", tab === "apps");
-  document.getElementById("nav-review")?.classList.toggle("active", ["review","app-review"].includes(tab));
+  document.getElementById("nav-review")?.classList.toggle("active", ["review","app-review","user-review"].includes(tab));
+  document.getElementById("nav-dashboard")?.classList.toggle("active", tab === "dashboard");
+  if (tab === "dashboard") loadDashboard(dashPeriod);
   render();
 }
 
@@ -92,7 +97,7 @@ function switchTabFromChip(tab) {
 function toggleAdminMode() {
   isAdminMode = !isAdminMode;
   applyAdminMode();
-  if (!isAdminMode && ["users","projects","groups","review","app-review"].includes(activeTab)) switchTab("sbbs");
+  if (!isAdminMode && ["users","projects","groups","review","app-review","user-review","dashboard"].includes(activeTab)) switchTab("sbbs");
 }
 
 function applyAdminMode() {
@@ -117,6 +122,7 @@ function render() {
   if (activeTab === "users")      renderUserGrid();
   if (activeTab === "review")     renderReviewQueue();
   if (activeTab === "app-review") renderAppReviewQueue();
+  if (activeTab === "dashboard" && dashData) renderDashboard();
 }
 
 // ── SBBs ───────────────────────────────────────────────────────────────────
@@ -331,8 +337,8 @@ function filteredUsers() {
 function renderUserGrid() {
   document.getElementById("stat-users-total").textContent   = allUsers.length;
   document.getElementById("stat-users-admin").textContent   = allUsers.filter(u => u.role === "admin").length;
-  document.getElementById("stat-users-dev").textContent     = allUsers.filter(u => u.role === "developer").length;
-  document.getElementById("stat-users-analyst").textContent = allUsers.filter(u => u.role === "analyst").length;
+  document.getElementById("stat-users-dev").textContent     = allUsers.filter(u => ["lead","developer","pm"].includes(u.role)).length;
+  document.getElementById("stat-users-analyst").textContent = allUsers.filter(u => ["analyst","guest"].includes(u.role)).length;
 
   const items = filteredUsers();
   const grid  = document.getElementById("user-grid");
@@ -384,11 +390,14 @@ async function openSBBDetail(s) {
       ${s.git_ref ? `<div class="detail-row"><span class="detail-key">Source</span><span class="detail-value"><a href="${s.git_ref}" target="_blank" rel="noopener">${s.git_ref}</a></span></div>` : ""}
       ${row("Tags",         (s.tags || []).join(", "))}
       ${row("Published at", fmtDate(s.published_at))}
+      ${s.promoted_by ? row("Promoted by", s.promoted_by) : ""}
+      ${s.promoted_at ? row("Promoted at", fmtDate(s.promoted_at)) : ""}
+      ${row("Last updated", fmtDate(s.updated_at))}
     </div>
     ${auditHtml}
     <div class="detail-actions">
-      ${s.status === "published" ? `<button class="btn btn-primary btn-sm" onclick="promoteSBB(${s.id})">Promote</button>` : ""}
-      <button class="btn btn-danger btn-sm" onclick="deleteSBB(${s.id})">Delete</button>
+      ${currentUser?.role === "admin" && s.status === "published" ? `<button class="btn btn-primary btn-sm" onclick="promoteSBB(${s.id})">Promote</button>` : ""}
+      ${currentUser?.role === "admin" ? `<button class="btn btn-danger btn-sm" onclick="deleteSBB(${s.id})">Delete</button>` : ""}
       <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')">Close</button>
     </div>`;
   openModal("detail-modal");
@@ -434,14 +443,15 @@ function openAppDetail(a) {
       ${row("Contact", a.contact)}
       ${row("k9-aif ver",   a.k9aif_version)}
       ${row("Tags",          (a.tags || []).join(", "))}
-      ${a.url ? `<div class="detail-row"><span class="detail-key">URL</span><span class="detail-value"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      ${a.project_url ? `<div class="detail-row"><span class="detail-key">Project Page</span><span class="detail-value"><a href="${a.project_url}" target="_blank" rel="noopener">Open ↗</a></span></div>` : ""}
+      ${a.url ? `<div class="detail-row"><span class="detail-key">App URL</span><span class="detail-value"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
     </div>
     ${(a.sbbs_used || []).length ? `<div class="detail-section"><h3>SBBs Used</h3>` +
       (a.sbbs_used).map(s => `<div class="detail-row"><span class="detail-key">${s}</span>
         <span class="detail-value">${allSBBs.find(sb => sb.name === s) ? badge("badge-inspect","✓ in catalog") : badge("badge-noinspect","not in catalog")}</span>
       </div>`).join("") + `</div>` : ""}
     <div class="detail-actions">
-      <button class="btn btn-danger btn-sm" onclick="deleteApp(${a.id})">Remove</button>
+      ${currentUser?.role === "admin" ? `<button class="btn btn-danger btn-sm" onclick="deleteApp(${a.id})">Remove</button>` : ""}
       <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')">Close</button>
     </div>`;
   openModal("detail-modal");
@@ -463,6 +473,9 @@ function openUserDetail(u) {
       ${row("Since",       fmtDate(u.created_at))}
     </div>
     <div class="detail-actions">
+      ${!u.is_active
+        ? `<button class="btn btn-primary btn-sm" onclick="activateUser(${u.id})">Approve</button>`
+        : `<button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id})">Deactivate</button>`}
       <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Remove</button>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')">Close</button>
     </div>`;
@@ -471,6 +484,7 @@ function openUserDetail(u) {
 
 // ── SBB publish form ───────────────────────────────────────────────────────
 function openPublishModal() {
+  if (!currentUser) { toast("Please sign in to publish an SBB", "error"); return; }
   document.getElementById("publish-form").reset();
   const list = document.getElementById("f-abb-list");
   list.innerHTML = "";
@@ -525,15 +539,16 @@ async function submitPublish(e) {
   };
   try {
     await postJSON(`${API}/api/v1/sbbs`, payload);
-    toast("SBB published");
+    toast("SBB submitted for review");
     closeModal("publish-modal");
-    await loadSBBs();
+    await Promise.all([loadSBBs(), loadReviewQueue()]);
   } catch(err) { toast(err.message, "error"); }
 }
 
 async function promoteSBB(id) {
+  const actor = currentUser?.email || "";
   try {
-    await patchJSON(`${API}/api/v1/sbbs/${id}/promote`);
+    await patchJSON(`${API}/api/v1/sbbs/${id}/promote?actor=${encodeURIComponent(actor)}`);
     toast("SBB promoted to shared catalog");
     closeModal("detail-modal");
     await loadSBBs();
@@ -557,9 +572,10 @@ async function submitApp(e) {
     name:          document.getElementById("a-name").value.trim(),
     description:   document.getElementById("a-desc").value.trim(),
     domain:        document.getElementById("a-domain").value.trim(),
-    project:       document.getElementById("a-project").value.trim() || null,
-    department:    document.getElementById("a-department").value.trim() || null,
-    url:           document.getElementById("a-url").value.trim() || null,
+    project:       document.getElementById("a-project").value.trim()     || null,
+    project_url:   document.getElementById("a-project-url").value.trim() || null,
+    department:    document.getElementById("a-department").value.trim()   || null,
+    url:           document.getElementById("a-url").value.trim()          || null,
     team:          document.getElementById("a-team").value.trim() || null,
     contact:       document.getElementById("a-contact").value.trim() || null,
     k9aif_version: document.getElementById("a-version").value.trim() || null,
@@ -569,9 +585,9 @@ async function submitApp(e) {
   };
   try {
     await postJSON(`${API}/api/v1/applications`, payload);
-    toast("Application registered");
+    toast("Application submitted for review");
     closeModal("app-modal");
-    await loadApps();
+    await Promise.all([loadApps(), loadAppReviewQueue()]);
   } catch(err) { toast(err.message, "error"); }
 }
 
@@ -608,6 +624,25 @@ async function submitUser(e) {
   } catch(err) { toast(err.message, "error"); }
 }
 
+async function activateUser(id) {
+  try {
+    await patchJSON(`${API}/api/v1/users/${id}/activate`);
+    toast("User approved — they can now sign in");
+    closeModal("detail-modal");
+    await loadUsers();
+  } catch(err) { toast(err.message, "error"); }
+}
+
+async function deactivateUser(id) {
+  if (!confirm("Deactivate this user?")) return;
+  try {
+    await patchJSON(`${API}/api/v1/users/${id}/deactivate`);
+    toast("User deactivated");
+    closeModal("detail-modal");
+    await loadUsers();
+  } catch(err) { toast(err.message, "error"); }
+}
+
 async function deleteUser(id) {
   if (!confirm("Remove this user?")) return;
   try {
@@ -616,6 +651,146 @@ async function deleteUser(id) {
     closeModal("detail-modal");
     await loadUsers();
   } catch(err) { toast(err.message, "error"); }
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard(days) {
+  days = days || dashPeriod;
+  dashPeriod = days;
+  try {
+    dashData = await fetchJSON(`${API}/api/v1/audit/summary?days=${days}`);
+    if (activeTab === "dashboard") renderDashboard();
+  } catch(err) { console.error("Dashboard load error", err); }
+}
+
+function setDashPeriod(days) {
+  dashPeriod = days;
+  document.querySelectorAll(".period-btn").forEach(b => {
+    b.classList.toggle("active", parseInt(b.dataset.days) === days);
+  });
+  const label = document.getElementById("dash-period-label");
+  if (label) label.textContent = `last ${days} days`;
+  loadDashboard(days);
+}
+
+function renderDashboard() {
+  if (!dashData) return;
+  const d = dashData;
+
+  const pendingTotal = allPending.length + allPendingApps.length + allPendingUsers.length;
+  document.getElementById("dash-stat-cards").innerHTML = `
+    <div class="stat-card"><div class="stat-value">${allSBBs.length}</div><div class="stat-label">Total SBBs</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">${allApps.length}</div><div class="stat-label">Applications</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--accent)">${allUsers.length}</div><div class="stat-label">Users</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:${pendingTotal > 0 ? "var(--warning)" : "var(--text-muted)"}">${pendingTotal}</div><div class="stat-label">Pending Review</div></div>
+  `;
+
+  renderActivityChart(d.daily_activity);
+  renderDonutChart(d.sbb_statuses);
+
+  const contEl = document.getElementById("dash-contributors");
+  if (!d.top_contributors.length) {
+    contEl.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:16px 0">No activity yet.</div>`;
+  } else {
+    const maxCnt = d.top_contributors[0].count;
+    contEl.innerHTML = d.top_contributors.map((c, i) => `
+      <div class="dash-contrib-row">
+        <span class="dash-contrib-rank">#${i+1}</span>
+        <span class="dash-contrib-name">${c.actor}</span>
+        <div class="dash-contrib-bar-wrap"><div class="dash-contrib-bar" style="width:${Math.round(c.count/maxCnt*100)}%"></div></div>
+        <span class="dash-contrib-count">${c.count}</span>
+      </div>`).join("");
+  }
+
+  const recentEl = document.getElementById("dash-recent");
+  if (!d.recent_activity.length) {
+    recentEl.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:16px 0">No activity recorded.</div>`;
+  } else {
+    recentEl.innerHTML = d.recent_activity.map(e => `
+      <div class="audit-row">
+        <span class="audit-action audit-${e.action}">${e.action}</span>
+        <span class="audit-actor">${e.entity} #${e.entity_id}${e.actor ? " · " + e.actor : ""}</span>
+        <span class="audit-time">${fmtDate(e.created_at)}</span>
+      </div>`).join("");
+  }
+}
+
+function renderActivityChart(daily) {
+  const el = document.getElementById("dash-activity-chart");
+  if (!el) return;
+  if (!daily.length) {
+    el.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:40px 0">No activity in this period.</div>`;
+    return;
+  }
+  const byDay = {};
+  daily.forEach(d => { byDay[d.day] = (byDay[d.day] || 0) + d.count; });
+  const days  = Object.keys(byDay).sort();
+  const counts = days.map(d => byDay[d]);
+  const maxCount = Math.max(...counts, 1);
+  const W = 480, H = 130, PADL = 28, PADB = 26, PADR = 8, PADT = 8;
+  const chartW = W - PADL - PADR, chartH = H - PADB - PADT;
+  const slotW = chartW / days.length;
+  const barW  = Math.max(3, Math.floor(slotW * 0.6));
+  let bars = "", labels = "";
+  days.forEach((day, i) => {
+    const x = PADL + i * slotW + (slotW - barW) / 2;
+    const barH = Math.max(2, (counts[i] / maxCount) * chartH);
+    const y = PADT + chartH - barH;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" rx="2" fill="var(--accent)" opacity="0.82"><title>${day}: ${counts[i]} events</title></rect>`;
+    if (days.length <= 14 || i % Math.ceil(days.length / 10) === 0) {
+      const dt = new Date(day + "T00:00:00");
+      labels += `<text x="${(x + barW/2).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${dt.getMonth()+1}/${dt.getDate()}</text>`;
+    }
+  });
+  const gridLines = [0, 0.5, 1].map(frac => {
+    const y = (PADT + chartH - frac * chartH).toFixed(1);
+    const val = Math.round(frac * maxCount);
+    return `<line x1="${PADL}" y1="${y}" x2="${W-PADR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>
+            <text x="${PADL-3}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="var(--text-muted)">${val}</text>`;
+  }).join("");
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">${gridLines}${bars}${labels}</svg>`;
+}
+
+function renderDonutChart(statuses) {
+  const el = document.getElementById("dash-donut-chart");
+  if (!el) return;
+  const COLORS = { draft:"#94a3b8", published:"#10b981", promoted:"#8b5cf6", pending_review:"#f59e0b", rejected:"#ef4444" };
+  const total = statuses.reduce((s, e) => s + e.count, 0);
+  if (!total) {
+    el.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:40px 0">No SBBs yet.</div>`;
+    return;
+  }
+  const CX = 110, CY = 110, R = 90, IR = 52;
+  let startAngle = -Math.PI / 2, slices = "";
+  statuses.forEach(s => {
+    const frac = s.count / total;
+    const endAngle = startAngle + frac * 2 * Math.PI;
+    if (frac < 0.001) { startAngle = endAngle; return; }
+    const [x1,y1] = [CX + R*Math.cos(startAngle), CY + R*Math.sin(startAngle)];
+    const [x2,y2] = [CX + R*Math.cos(endAngle),   CY + R*Math.sin(endAngle)];
+    const [ix1,iy1] = [CX + IR*Math.cos(startAngle), CY + IR*Math.sin(startAngle)];
+    const [ix2,iy2] = [CX + IR*Math.cos(endAngle),   CY + IR*Math.sin(endAngle)];
+    const large = frac > 0.5 ? 1 : 0;
+    const color = COLORS[s.status] || "#6366f1";
+    slices += `<path d="M ${ix1.toFixed(2)} ${iy1.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${ix2.toFixed(2)} ${iy2.toFixed(2)} A ${IR} ${IR} 0 ${large} 0 ${ix1.toFixed(2)} ${iy1.toFixed(2)} Z" fill="${color}"><title>${s.status}: ${s.count}</title></path>`;
+    startAngle = endAngle;
+  });
+  const legend = statuses.map(s => {
+    const color = COLORS[s.status] || "#6366f1";
+    return `<div class="dash-legend-item">
+      <span class="dash-legend-dot" style="background:${color}"></span>
+      <span class="dash-legend-label">${s.status}</span>
+      <span class="dash-legend-count">${s.count} (${Math.round(s.count/total*100)}%)</span>
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="dash-donut-wrap">
+    <svg viewBox="0 0 ${CX*2} ${CY*2}" style="width:220px;height:220px;flex-shrink:0">
+      ${slices}
+      <text x="${CX}" y="${CY}" text-anchor="middle" dominant-baseline="middle" font-size="26" font-weight="700" fill="var(--text-header)">${total}</text>
+      <text x="${CX}" y="${CY+22}" text-anchor="middle" font-size="12" fill="var(--text-muted)">SBBs</text>
+    </svg>
+    <div class="dash-legend">${legend}</div>
+  </div>`;
 }
 
 // ── Review Queue ───────────────────────────────────────────────────────────
@@ -635,42 +810,130 @@ async function loadAppReviewQueue() {
   if (activeTab === "app-review") renderAppReviewQueue();
 }
 
+let allPendingUsers = [];
+
+async function loadUserReviewQueue() {
+  allPendingUsers = await fetchJSON(`${API}/api/v1/users/pending`);
+  const chip = document.getElementById("user-review-count");
+  if (chip) chip.textContent = `${allPendingUsers.length} pending`;
+  updateReviewBadge();
+  if (activeTab === "user-review") renderUserReviewQueue();
+}
+
 function updateReviewBadge() {
-  const total = allPending.length + allPendingApps.length;
+  const total = allPending.length + allPendingApps.length + allPendingUsers.length;
   const badge = document.getElementById("review-nav-badge");
   if (badge) { badge.textContent = total; badge.style.display = total > 0 ? "" : "none"; }
+}
+
+function renderUserReviewQueue() {
+  const list = document.getElementById("user-review-list");
+  if (!list) return;
+  if (!allPendingUsers.length) {
+    list.innerHTML = emptyState("✅", "No pending registrations.");
+    document.getElementById("user-review-detail").innerHTML = `<div class="review-detail-empty">Select a registration to review</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  allPendingUsers.forEach(u => {
+    const div = document.createElement("div");
+    div.className = "review-list-row";
+    div.innerHTML = `
+      <div class="rlr-name">${u.name}</div>
+      <div class="rlr-meta" style="font-size:11px;color:var(--text-muted)">${u.email}</div>
+      <div class="rlr-date">${fmtDate(u.created_at)}</div>`;
+    div.onclick = () => viewUserDetail(u, div);
+    list.appendChild(div);
+  });
+}
+
+function viewUserDetail(u, rowEl) {
+  document.querySelectorAll(".review-list-row.active").forEach(r => r.classList.remove("active"));
+  rowEl?.classList.add("active");
+  const panel = document.getElementById("user-review-detail");
+  panel.innerHTML = `
+    <div class="rdp-header">
+      <div class="rdp-name">${u.name}</div>
+    </div>
+    <div class="rdp-grid">
+      ${detailItem("Email",      u.email)}
+      ${detailItem("Department", u.department || "—")}
+      ${detailItem("Team",       u.team       || "—")}
+      ${detailItem("Requested",  fmtDate(u.created_at))}
+    </div>
+    <div class="rdp-actions">
+      <button class="btn btn-primary" onclick="approveUser(${u.id})">Approve</button>
+      <button class="btn btn-danger"  onclick="rejectUser(${u.id})">Reject</button>
+    </div>`;
+}
+
+async function approveUser(id) {
+  try {
+    await patchJSON(`${API}/api/v1/users/${id}/activate`);
+    toast("User approved — they can now sign in");
+    document.getElementById("user-review-detail").innerHTML = `<div class="review-detail-empty">Select a registration to review</div>`;
+    await loadUserReviewQueue();
+    updateReviewBadge();
+  } catch(err) { toast(err.message, "error"); }
+}
+
+async function rejectUser(id) {
+  if (!confirm("Reject and remove this registration?")) return;
+  try {
+    await del(`${API}/api/v1/users/${id}`);
+    toast("Registration rejected and removed");
+    document.getElementById("user-review-detail").innerHTML = `<div class="review-detail-empty">Select a registration to review</div>`;
+    await loadUserReviewQueue();
+    updateReviewBadge();
+  } catch(err) { toast(err.message, "error"); }
 }
 
 function renderAppReviewQueue() {
   const list = document.getElementById("app-review-queue-list");
   if (!list) return;
-  if (!allPendingApps.length) { list.innerHTML = emptyState("✅", "No applications pending review."); return; }
+  if (!allPendingApps.length) {
+    list.innerHTML = emptyState("✅", "No applications pending review.");
+    document.getElementById("app-review-detail").innerHTML = `<div class="review-detail-empty">Select an application to review</div>`;
+    return;
+  }
   list.innerHTML = "";
   allPendingApps.forEach(a => {
     const div = document.createElement("div");
-    div.className = "review-row";
+    div.className = "review-list-row";
     div.innerHTML = `
-      <div class="review-row-header">
-        <div class="review-row-name">${a.name}</div>
-        ${a.domain ? badge("badge-domain", a.domain) : ""}
-      </div>
-      ${a.description ? `<div class="review-row-desc">${a.description}</div>` : ""}
-      <div class="review-row-grid">
-        ${detailItem("Contact",    a.contact    || "—")}
-        ${detailItem("Team",       a.team       || "—")}
-        ${detailItem("Department", a.department || "—")}
-        ${detailItem("Project",    a.project    || "—")}
-        ${detailItem("k9-aif ver", a.k9aif_version || "—")}
-        ${detailItem("Submitted",  fmtDate(a.created_at))}
-        ${a.url ? `<div class="review-detail-item"><span class="review-detail-key">URL</span><span class="review-detail-val"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
-      </div>
-      ${(a.sbbs_used||[]).length ? `<div class="review-row-meta">${(a.sbbs_used).map(s => badge("badge-abb", s)).join("")}</div>` : ""}
-      <div class="review-row-actions">
-        <button class="btn btn-primary btn-sm" onclick="approveApp(${a.id})">Approve → POC</button>
-        <button class="btn btn-danger btn-sm"  onclick="openRejectModal(${a.id}, 'app')">Reject</button>
-      </div>`;
+      <div class="rlr-name">${a.name}</div>
+      <div class="rlr-meta">${a.domain ? badge("badge-domain", a.domain) : ""}</div>
+      <div class="rlr-date">${fmtDate(a.created_at)}</div>`;
+    div.onclick = () => viewAppDetail(a, div);
     list.appendChild(div);
   });
+}
+
+function viewAppDetail(a, rowEl) {
+  document.querySelectorAll(".review-list-row.active").forEach(r => r.classList.remove("active"));
+  rowEl?.classList.add("active");
+  const panel = document.getElementById("app-review-detail");
+  panel.innerHTML = `
+    <div class="rdp-header">
+      <div class="rdp-name">${a.name}</div>
+      ${a.domain ? badge("badge-domain", a.domain) : ""}
+    </div>
+    ${a.description ? `<div class="rdp-desc">${a.description}</div>` : ""}
+    <div class="rdp-grid">
+      ${detailItem("Contact",    a.contact    || "—")}
+      ${detailItem("Team",       a.team       || "—")}
+      ${detailItem("Department", a.department || "—")}
+      ${detailItem("Project",    a.project    || "—")}
+      ${detailItem("k9-aif ver", a.k9aif_version || "—")}
+      ${detailItem("Submitted",  fmtDate(a.created_at))}
+      ${a.project_url ? `<div class="review-detail-item"><span class="review-detail-key">Project Page</span><span class="review-detail-val"><a href="${a.project_url}" target="_blank" rel="noopener">Open ↗</a></span></div>` : ""}
+      ${a.url ? `<div class="review-detail-item"><span class="review-detail-key">App URL</span><span class="review-detail-val"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+    </div>
+    ${(a.sbbs_used||[]).length ? `<div class="rdp-sbbs">${a.sbbs_used.map(s => badge("badge-abb", s)).join("")}</div>` : ""}
+    <div class="rdp-actions">
+      <button class="btn btn-primary" onclick="approveApp(${a.id})">Approve → POC</button>
+      <button class="btn btn-danger"  onclick="openRejectModal(${a.id}, 'app')">Reject</button>
+    </div>`;
 }
 
 async function approveApp(id) {
@@ -678,7 +941,9 @@ async function approveApp(id) {
   try {
     await patchJSON(`${API}/api/v1/applications/${id}/approve?actor=${encodeURIComponent(actor || "")}`);
     toast("Application approved and added to catalog");
+    document.getElementById("app-review-detail").innerHTML = `<div class="review-detail-empty">Select an application to review</div>`;
     await Promise.all([loadApps(), loadAppReviewQueue()]);
+    updateReviewBadge();
   } catch(err) { toast(err.message, "error"); }
 }
 
@@ -687,39 +952,48 @@ function renderReviewQueue() {
   if (!list) return;
   if (!allPending.length) {
     list.innerHTML = emptyState("✅", "No SBBs pending review — queue is clear.");
+    document.getElementById("sbb-review-detail").innerHTML = `<div class="review-detail-empty">Select an SBB to review</div>`;
     return;
   }
   list.innerHTML = "";
   allPending.forEach(s => {
-    const managerLine = s.submission_note?.match(/manager=([^|]+)/)?.[1]?.trim();
     const div = document.createElement("div");
-    div.className = "review-row";
+    div.className = "review-list-row";
     div.innerHTML = `
-      <div class="review-row-header">
-        <div class="review-row-name">${s.name}</div>
-        ${badge("badge-kind", s.kind)}
-        ${s.inspect_passed ? badge("badge-inspect","✓ inspect") : badge("badge-noinspect","✗ inspect")}
-      </div>
-      <div class="review-row-meta">
-        ${(s.abb_names||[]).map(a => badge("badge-abb", a)).join("")}
-        ${s.domain ? badge("badge-domain", s.domain) : ""}
-      </div>
-      ${s.description ? `<div class="review-row-desc">${s.description}</div>` : ""}
-      ${managerLine ? `<div class="review-manager-note">Manager approval declared: <strong>${managerLine}</strong></div>` : ""}
-      <div class="review-row-grid">
-        ${detailItem("Submitted by", s.published_by || "—")}
-        ${detailItem("Technical Lead", s.tech_lead || "—")}
-        ${detailItem("Project", s.project || "—")}
-        ${detailItem("Version", s.version)}
-        ${detailItem("Submitted", fmtDate(s.created_at))}
-        ${s.git_ref ? `<div class="review-detail-item"><span class="review-detail-key">Source</span><span class="review-detail-val"><a href="${s.git_ref}" target="_blank" rel="noopener">${s.git_ref}</a></span></div>` : ""}
-      </div>
-      <div class="review-row-actions">
-        <button class="btn btn-primary btn-sm" onclick="approveSBB(${s.id})">Approve → Publish</button>
-        <button class="btn btn-danger btn-sm"  onclick="openRejectModal(${s.id})">Reject</button>
-      </div>`;
+      <div class="rlr-name">${s.name}</div>
+      <div class="rlr-meta">${badge("badge-kind", s.kind)} ${s.inspect_passed ? badge("badge-inspect","✓") : badge("badge-noinspect","✗")}</div>
+      <div class="rlr-date">${fmtDate(s.created_at)}</div>`;
+    div.onclick = () => viewSBBDetail(s, div);
     list.appendChild(div);
   });
+}
+
+function viewSBBDetail(s, rowEl) {
+  document.querySelectorAll(".review-list-row.active").forEach(r => r.classList.remove("active"));
+  rowEl?.classList.add("active");
+  const managerLine = s.submission_note?.match(/manager=([^|]+)/)?.[1]?.trim();
+  const panel = document.getElementById("sbb-review-detail");
+  panel.innerHTML = `
+    <div class="rdp-header">
+      <div class="rdp-name">${s.name}</div>
+      ${badge("badge-kind", s.kind)}
+      ${s.inspect_passed ? badge("badge-inspect","✓ inspect") : badge("badge-noinspect","✗ inspect")}
+    </div>
+    <div class="rdp-abbs">${(s.abb_names||[]).map(a => badge("badge-abb", a)).join("")} ${s.domain ? badge("badge-domain", s.domain) : ""}</div>
+    ${s.description ? `<div class="rdp-desc">${s.description}</div>` : ""}
+    ${managerLine ? `<div class="review-manager-note">Manager: <strong>${managerLine}</strong></div>` : ""}
+    <div class="rdp-grid">
+      ${detailItem("Submitted by",   s.published_by || "—")}
+      ${detailItem("Technical Lead", s.tech_lead    || "—")}
+      ${detailItem("Project",        s.project      || "—")}
+      ${detailItem("Version",        s.version)}
+      ${detailItem("Submitted",      fmtDate(s.created_at))}
+      ${s.git_ref ? `<div class="review-detail-item"><span class="review-detail-key">Source</span><span class="review-detail-val"><a href="${s.git_ref}" target="_blank" rel="noopener">${s.git_ref}</a></span></div>` : ""}
+    </div>
+    <div class="rdp-actions">
+      <button class="btn btn-primary" onclick="approveSBB(${s.id})">Approve → Publish</button>
+      <button class="btn btn-danger"  onclick="openRejectModal(${s.id})">Reject</button>
+    </div>`;
 }
 
 function detailItem(key, val) {
@@ -731,7 +1005,9 @@ async function approveSBB(id) {
   try {
     await patchJSON(`${API}/api/v1/sbbs/${id}/approve?actor=${encodeURIComponent(actor || "")}`);
     toast("SBB approved and published to catalog");
+    document.getElementById("sbb-review-detail").innerHTML = `<div class="review-detail-empty">Select an SBB to review</div>`;
     await Promise.all([loadSBBs(), loadReviewQueue()]);
+    updateReviewBadge();
   } catch(err) { toast(err.message, "error"); }
 }
 
@@ -751,12 +1027,15 @@ async function submitReject() {
     if (pendingRejectType === "app") {
       await patchJSON(`${API}/api/v1/applications/${pendingRejectId}/reject?${params}`);
       toast("Application rejected");
+      document.getElementById("app-review-detail").innerHTML = `<div class="review-detail-empty">Select an application to review</div>`;
       await loadAppReviewQueue();
     } else {
       await patchJSON(`${API}/api/v1/sbbs/${pendingRejectId}/reject?${params}`);
       toast("SBB rejected");
+      document.getElementById("sbb-review-detail").innerHTML = `<div class="review-detail-empty">Select an SBB to review</div>`;
       await loadReviewQueue();
     }
+    updateReviewBadge();
     closeModal("reject-modal");
     pendingRejectId   = null;
     pendingRejectType = null;
@@ -778,19 +1057,31 @@ function fmtDate(d)      { return d ? new Date(d).toLocaleString() : "—"; }
 async function loadABBs()  { allABBs  = await fetchJSON(`${API}/api/v1/abbs`); }
 async function loadSBBs()  { allSBBs  = await fetchJSON(`${API}/api/v1/sbbs`); renderSBBGrid(); }
 async function loadApps()  { allApps  = await fetchJSON(`${API}/api/v1/applications`); renderAppGrid(); }
-async function loadUsers() { allUsers = await fetchJSON(`${API}/api/v1/users`); renderUserGrid(); renderCurrentUser(); }
+async function loadUsers() { allUsers = await fetchJSON(`${API}/api/v1/users`); renderUserGrid(); }
 
 function renderCurrentUser() {
-  currentUser = allUsers.find(u => u.role === "admin") || allUsers[0] || null;
   const chip      = document.getElementById("user-chip");
+  const loginBtn  = document.getElementById("login-btn");
   const nameEl    = document.getElementById("user-chip-name");
   const toggleBtn = document.getElementById("admin-toggle-btn");
-  if (!currentUser) { chip.style.display = "none"; return; }
+  const registerBtn = document.getElementById("register-btn");
+  if (!currentUser) {
+    chip.style.display = "none";
+    if (loginBtn)    loginBtn.style.display    = "";
+    if (registerBtn) registerBtn.style.display = "";
+    document.getElementById("publish-btn")?.setAttribute("disabled", "true");
+    document.getElementById("register-app-btn")?.setAttribute("disabled", "true");
+    applyAdminMode();
+    return;
+  }
+  if (loginBtn)    loginBtn.style.display    = "none";
+  if (registerBtn) registerBtn.style.display = "none";
+  document.getElementById("publish-btn")?.removeAttribute("disabled");
+  document.getElementById("register-app-btn")?.removeAttribute("disabled");
   nameEl.textContent = currentUser.name;
   chip.style.display = "flex";
 
   if (currentUser.role === "admin") {
-    // click chip = open/close dropdown
     chip.onclick = (e) => {
       e.stopPropagation();
       document.getElementById("user-chip-dropdown").classList.toggle("open");
@@ -802,15 +1093,88 @@ function renderCurrentUser() {
     };
     toggleBtn.style.display = "";
   } else {
-    chip.onclick = null;
+    chip.onclick = (e) => {
+      e.stopPropagation();
+      document.getElementById("user-chip-dropdown").classList.toggle("open");
+    };
     toggleBtn.style.display = "none";
   }
   applyAdminMode();
 }
 
+// ── Auth ───────────────────────────────────────────────────────────────────
+const SESSION_KEY = "k9x_user";
+
+async function submitRegister(e) {
+  e.preventDefault();
+  const errEl = document.getElementById("register-error");
+  errEl.style.display = "none";
+  const payload = {
+    name:       document.getElementById("reg-name").value.trim(),
+    email:      document.getElementById("reg-email").value.trim(),
+    password:   document.getElementById("reg-password").value,
+    department: document.getElementById("reg-department").value.trim() || null,
+    team:       document.getElementById("reg-team").value || null,
+  };
+  try {
+    await postJSON(`${API}/api/v1/auth/register`, payload);
+    closeModal("register-modal");
+    document.getElementById("register-form").reset();
+    toast("Registration submitted — an admin will approve your account");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = "";
+  }
+}
+
+async function submitLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errEl    = document.getElementById("login-error");
+  errEl.style.display = "none";
+  try {
+    const user = await postJSON(`${API}/api/v1/auth/login`, { email, password });
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    currentUser = user;
+    isAdminMode = user.role === "admin";
+    closeModal("login-modal");
+    renderCurrentUser();
+    await Promise.all([loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue(), loadUsers()]);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = "";
+  }
+}
+
+function logout() {
+  localStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  isAdminMode = false;
+  allPending = []; allPendingApps = []; allPendingUsers = [];
+  document.getElementById("user-chip-dropdown")?.classList.remove("open");
+  document.getElementById("login-email").value = "";
+  document.getElementById("login-password").value = "";
+  document.getElementById("login-error").style.display = "none";
+  renderCurrentUser();
+  applyAdminMode();
+  updateReviewBadge();
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   initTheme();
+
+  // Restore session if present — catalog always loads regardless
+  const saved = localStorage.getItem(SESSION_KEY);
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    isAdminMode = currentUser.role === "admin";
+  }
+  document.getElementById("login-form").onsubmit    = submitLogin;
+  document.getElementById("register-form").onsubmit = submitRegister;
+  document.getElementById("login-btn")?.addEventListener("click",    () => { document.getElementById("login-form").reset(); document.getElementById("login-error").style.display="none"; openModal("login-modal"); });
+  document.getElementById("register-btn")?.addEventListener("click", () => { document.getElementById("register-form").reset(); document.getElementById("register-error").style.display="none"; openModal("register-modal"); });
 
   document.getElementById("theme-btn").onclick   = toggleTheme;
   document.getElementById("help-btn").onclick    = () => openModal("help-modal");
@@ -861,7 +1225,8 @@ async function init() {
     document.querySelectorAll(".nav-item.open").forEach(i => i.classList.remove("open"));
   });
 
-  await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue(), loadAppReviewQueue()]);
+  renderCurrentUser();
+  await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue()]);
   renderABBList();
 }
 

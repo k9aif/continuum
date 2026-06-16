@@ -30,7 +30,7 @@ class User(Base):
     name         = Column(String(255), nullable=False)
     email        = Column(String(255), unique=True, nullable=False)
     phone        = Column(String(50))
-    role         = Column(String(20), default="developer")   # admin | developer | analyst
+    role         = Column(String(20), default="developer")   # admin | pm | lead | developer | analyst | guest
     department   = Column(String(255))
     team         = Column(String(255))
     manager      = Column(String(255))
@@ -90,6 +90,8 @@ class SBB(Base):
     published_by    = Column(String(255))
     tech_lead       = Column(String(255))
     published_at    = Column(DateTime)
+    promoted_by     = Column(String(255))
+    promoted_at     = Column(DateTime)
     project         = Column(String(100))
     created_at      = Column(DateTime, server_default=func.now())
     updated_at      = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -104,6 +106,7 @@ class Application(Base):
     description    = Column(Text)
     domain         = Column(String(100))
     project        = Column(String(255))
+    project_url    = Column(String(500))   # Confluence / wiki / request-access page
     department     = Column(String(255))
     url            = Column(String(500))
     team           = Column(String(255))
@@ -219,8 +222,11 @@ class SBBOut(BaseModel):
     tech_lead: Optional[str]
     git_ref: Optional[str]
     published_at: Optional[datetime]
+    promoted_by: Optional[str]
+    promoted_at: Optional[datetime]
     project: Optional[str]
     created_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
 
@@ -234,6 +240,7 @@ class ApplicationCreate(BaseModel):
     description: Optional[str] = None
     domain: Optional[str] = None
     project: Optional[str] = None
+    project_url: Optional[str] = None
     department: Optional[str] = None
     url: Optional[str] = None
     team: Optional[str] = None
@@ -250,6 +257,7 @@ class ApplicationOut(BaseModel):
     description: Optional[str]
     domain: Optional[str]
     project: Optional[str]
+    project_url: Optional[str]
     department: Optional[str]
     url: Optional[str]
     team: Optional[str]

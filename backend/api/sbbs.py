@@ -168,8 +168,10 @@ def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(
         raise HTTPException(status_code=404, detail="SBB not found")
     if sbb.status != "published":
         raise HTTPException(status_code=422, detail="Only published SBBs can be promoted")
-    sbb.status = "promoted"
-    _log(db, sbb.id, "promoted", actor=actor or sbb.published_by, project=sbb.project)
+    sbb.status      = "promoted"
+    sbb.promoted_by = actor or sbb.published_by
+    sbb.promoted_at = datetime.now(timezone.utc)
+    _log(db, sbb.id, "promoted", actor=sbb.promoted_by, project=sbb.project)
     db.commit()
     db.refresh(sbb)
     return sbb

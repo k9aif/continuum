@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>k9x Continuum</title>
-  <link rel="stylesheet" href="/static/app.css?v=4" />
-  <script src="/static/app.js?v=4" defer></script>
+  <title>k9x Enterprise Continuum</title>
+  <link rel="stylesheet" href="/static/app.css?v=13" />
+  <script src="/static/app.js?v=13" defer></script>
 </head>
 <body>
 
@@ -14,7 +14,7 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <h2>k9x Continuum</h2>
+      <h2>k9x Enterprise Continuum</h2>
       <p>Agentic SBB &amp; ABB Catalog</p>
     </div>
 
@@ -71,8 +71,11 @@
       <select id="filter-role" class="filter-select">
         <option value="">All roles</option>
         <option value="admin">Admin</option>
+        <option value="pm">PM</option>
+        <option value="lead">Lead</option>
         <option value="developer">Developer</option>
         <option value="analyst">Analyst</option>
+        <option value="guest">Guest</option>
       </select>
     </div>
 
@@ -89,6 +92,22 @@
       <div class="filter-label">Review Queue</div>
       <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:4px">
         SBBs submitted by registered users awaiting admin approval before entering the catalog.
+      </div>
+    </div>
+
+    <!-- User registration sidebar -->
+    <div id="sidebar-user-review" class="filters" style="display:none">
+      <div class="filter-label">Pending Registrations</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:4px">
+        Users who have registered and are awaiting admin approval to access the platform.
+      </div>
+    </div>
+
+    <!-- Dashboard sidebar -->
+    <div id="sidebar-dashboard" class="filters" style="display:none">
+      <div class="filter-label">Admin Dashboard</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:4px">
+        Activity summary, artifact status breakdown, and top contributors.
       </div>
     </div>
 
@@ -131,7 +150,7 @@
     <header class="header">
       <div class="header-brand">
         <a class="header-logo" href="https://k9x.ai" target="_blank" rel="noopener" style="text-decoration:none">k9x</a>
-        <div class="header-sub">Continuum</div>
+        <div class="header-sub">Enterprise Continuum</div>
       </div>
 
       <!-- Main nav -->
@@ -153,11 +172,15 @@
           <div class="nav-dropdown">
             <div class="nav-dd-item" onclick="switchTab('review')">SBB Review</div>
             <div class="nav-dd-item" onclick="switchTab('app-review')">Applications Review</div>
+            <div class="nav-dd-item" onclick="switchTab('user-review')">Pending Registrations</div>
           </div>
         </div>
       </nav>
 
       <div class="header-actions">
+        <button id="nav-dashboard" class="nav-btn admin-only" style="display:none" onclick="switchTab('dashboard')">Dashboard</button>
+        <button id="register-btn" class="btn btn-ghost btn-sm" style="display:none">Register</button>
+        <button id="login-btn" class="btn btn-primary btn-sm" style="display:none">Login</button>
         <div id="user-chip" class="user-chip" style="display:none">
           <span id="user-chip-name"></span>
           <span id="user-chip-role" class="user-chip-role"></span>
@@ -168,6 +191,8 @@
             <div class="ucd-item admin-only" onclick="switchTabFromChip('users')">Users</div>
             <div class="ucd-item admin-only ucd-soon">Groups <span class="soon-badge">soon</span></div>
             <div class="ucd-item admin-only" onclick="switchTabFromChip('projects')">Projects</div>
+            <div class="ucd-separator"></div>
+            <div class="ucd-item ucd-logout" onclick="logout()">Sign out</div>
           </div>
         </div>
         <button id="help-btn" class="icon-btn" title="Help">?</button>
@@ -183,7 +208,7 @@
         <div class="topbar">
           <h1>SBB Catalog</h1>
           <div class="topbar-right">
-            <button id="publish-btn" class="btn btn-primary admin-only">+ Publish SBB</button>
+            <button id="publish-btn" class="btn btn-primary" disabled title="Sign in to publish an SBB">+ Publish SBB</button>
           </div>
         </div>
         <div class="stats" id="sbb-stats">
@@ -211,7 +236,7 @@
         <div class="topbar">
           <h1>Application Catalog</h1>
           <div class="topbar-right">
-            <button id="register-app-btn" class="btn btn-primary admin-only">+ Register App</button>
+            <button id="register-app-btn" class="btn btn-primary" disabled title="Sign in to register an application">+ Register App</button>
           </div>
         </div>
         <div class="stats">
@@ -221,6 +246,41 @@
           <div class="stat-card"><div class="stat-value" id="stat-apps-poc" style="color:var(--accent)">—</div><div class="stat-label">POC</div></div>
         </div>
         <div id="app-grid" class="sbb-grid"></div>
+      </div>
+
+      <!-- ── Admin Dashboard panel ────────────────────────────────────────── -->
+      <div id="panel-dashboard" class="tab-panel">
+        <div class="topbar">
+          <h1>Admin Dashboard</h1>
+          <div class="topbar-right">
+            <div class="period-selector">
+              <button class="period-btn" data-days="7" onclick="setDashPeriod(7)">7d</button>
+              <button class="period-btn active" data-days="30" onclick="setDashPeriod(30)">30d</button>
+              <button class="period-btn" data-days="90" onclick="setDashPeriod(90)">90d</button>
+            </div>
+          </div>
+        </div>
+        <div id="dash-stat-cards" class="stats"></div>
+        <div class="dash-charts">
+          <div class="dash-chart-card">
+            <div class="dash-chart-title">Activity — <span id="dash-period-label">last 30 days</span></div>
+            <div id="dash-activity-chart"></div>
+          </div>
+          <div class="dash-chart-card">
+            <div class="dash-chart-title">SBB Status Breakdown</div>
+            <div id="dash-donut-chart"></div>
+          </div>
+        </div>
+        <div class="dash-bottom">
+          <div class="dash-card">
+            <div class="dash-card-title">Top Contributors</div>
+            <div id="dash-contributors"></div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-card-title">Recent Activity</div>
+            <div id="dash-recent" class="dash-recent-list"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ── Users panel ────────────────────────────────────────────────── -->
@@ -234,8 +294,8 @@
         <div class="stats">
           <div class="stat-card"><div class="stat-value" id="stat-users-total">—</div><div class="stat-label">Total Users</div></div>
           <div class="stat-card"><div class="stat-value" id="stat-users-admin" style="color:var(--danger)">—</div><div class="stat-label">Admins</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-users-dev" style="color:var(--accent)">—</div><div class="stat-label">Developers</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-users-analyst" style="color:var(--success)">—</div><div class="stat-label">Analysts</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-users-dev" style="color:var(--accent)">—</div><div class="stat-label">PM / Lead / Dev</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-users-analyst" style="color:var(--success)">—</div><div class="stat-label">Analyst / Guest</div></div>
         </div>
         <div id="user-grid" class="user-grid"></div>
       </div>
@@ -248,10 +308,15 @@
             <span id="app-review-queue-count" class="stat-chip">— pending</span>
           </div>
         </div>
-        <div id="app-review-queue-list"></div>
+        <div class="review-split">
+          <div id="app-review-queue-list" class="review-split-list"></div>
+          <div id="app-review-detail" class="review-split-detail">
+            <div class="review-detail-empty">Select an application to review</div>
+          </div>
+        </div>
       </div>
 
-      <!-- ── Review Queue panel ─────────────────────────────────────────── -->
+      <!-- ── SBB Review Queue panel ─────────────────────────────────────────── -->
       <div id="panel-review" class="tab-panel">
         <div class="topbar">
           <h1>SBB Review Queue</h1>
@@ -259,7 +324,28 @@
             <span id="review-queue-count" class="stat-chip">— pending</span>
           </div>
         </div>
-        <div id="review-queue-list"></div>
+        <div class="review-split">
+          <div id="review-queue-list" class="review-split-list"></div>
+          <div id="sbb-review-detail" class="review-split-detail">
+            <div class="review-detail-empty">Select an SBB to review</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Pending Registrations panel ──────────────────────────────────── -->
+      <div id="panel-user-review" class="tab-panel">
+        <div class="topbar">
+          <h1>Pending Registrations</h1>
+          <div class="topbar-right">
+            <span id="user-review-count" class="stat-chip">— pending</span>
+          </div>
+        </div>
+        <div class="review-split">
+          <div id="user-review-list" class="review-split-list"></div>
+          <div id="user-review-detail" class="review-split-detail">
+            <div class="review-detail-empty">Select a registration to review</div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /content -->
@@ -409,6 +495,10 @@
           <input id="a-department" class="form-input" placeholder="e.g. AI &amp; Automation" />
         </div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Project Page URL <span style="font-weight:400;color:var(--text-muted)">(optional — Confluence, wiki, request-access link)</span></label>
+        <input id="a-project-url" class="form-input" placeholder="https://confluence.org/display/CLAIMS" />
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Team</label>
@@ -459,7 +549,10 @@
           <label class="form-label">Role</label>
           <select id="u-role" class="form-select">
             <option value="developer">Developer</option>
+            <option value="lead">Lead</option>
+            <option value="pm">PM</option>
             <option value="analyst">Analyst</option>
+            <option value="guest">Guest</option>
             <option value="admin">Admin</option>
           </select>
         </div>
@@ -526,10 +619,10 @@
 <!-- ── Help Modal ────────────────────────────────────────────────────────── -->
 <div id="help-modal" class="modal-overlay">
   <div class="modal">
-    <div class="modal-title">k9x Continuum — Help</div>
+    <div class="modal-title">k9x Enterprise Continuum — Help</div>
     <div class="help-body">
       <div class="help-section">
-        <h3>What is k9x Continuum?</h3>
+        <h3>What is k9x Enterprise Continuum?</h3>
         <p>A governed catalog of Architecture Building Blocks (ABBs) and Solution Building Blocks (SBBs) built with k9-aif. Track who built what, which ABB contracts they implement, and which applications use them.</p>
       </div>
       <div class="help-section">
@@ -560,6 +653,74 @@
     <div class="form-actions">
       <button class="btn btn-primary" onclick="closeModal('help-modal')">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- Register modal -->
+<div id="register-modal" class="modal-overlay">
+  <div class="modal login-card">
+    <div class="login-brand">
+      <h2>Request Access</h2>
+      <p>An admin will approve your account before you can sign in</p>
+    </div>
+    <form id="register-form">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input id="reg-name" class="form-input" type="text" placeholder="Your name" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="reg-email" class="form-input" type="email" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="reg-password" class="form-input" type="password" placeholder="••••••••" required />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input id="reg-department" class="form-input" type="text" placeholder="Optional" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Team</label>
+          <select id="reg-team" class="form-input">
+            <option value="">Select…</option>
+            <option>Professional Services</option>
+            <option>Research</option>
+          </select>
+        </div>
+      </div>
+      <div id="register-error" class="login-error" style="display:none"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('register-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Request Access</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Login modal -->
+<div id="login-modal" class="modal-overlay">
+  <div class="modal login-card">
+    <div class="login-brand">
+      <h2>k9x Enterprise Continuum</h2>
+      <p>Sign in to submit SBBs, register apps, and manage the catalog</p>
+    </div>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="login-email" class="form-input" type="email" placeholder="you@k9x.ai" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="login-password" class="form-input" type="password" placeholder="••••••••" required />
+      </div>
+      <div id="login-error" class="login-error" style="display:none"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('login-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Sign in</button>
+      </div>
+    </form>
   </div>
 </div>
 

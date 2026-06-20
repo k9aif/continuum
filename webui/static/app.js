@@ -108,12 +108,24 @@ function applyAdminMode() {
   });
   const roleEl = document.getElementById("user-chip-role");
   const toggleBtn = document.getElementById("admin-toggle-btn");
-  if (roleEl && currentUser?.role === "admin") {
-    roleEl.textContent = isAdminMode ? "Admin mode" : "Limited access";
-    roleEl.className   = `user-chip-role ${isAdminMode ? "role-chip-admin" : "role-chip-analyst"}`;
+  if (roleEl) {
+    if (currentUser?.role === "admin") {
+      roleEl.textContent = isAdminMode ? "Admin mode" : "Limited access";
+      roleEl.className   = `user-chip-role ${isAdminMode ? "role-chip-admin" : "role-chip-analyst"}`;
+      roleEl.style.display = "";
+    } else if (currentUser) {
+      roleEl.textContent = "";
+      roleEl.className   = "user-chip-role";
+      roleEl.style.display = "none";
+      isAdminMode = false;
+    } else {
+      roleEl.textContent = "";
+      roleEl.className   = "user-chip-role";
+    }
   }
   if (toggleBtn) {
     toggleBtn.textContent = isAdminMode ? "🔒 Switch to limited access" : "🔑 Enter admin mode";
+    toggleBtn.style.display = currentUser?.role === "admin" ? "" : "none";
   }
 }
 
@@ -122,9 +134,10 @@ function render() {
   if (activeTab === "abbs")       renderABBGrid();
   if (activeTab === "apps")       renderAppGrid();
   if (activeTab === "users")      renderUserGrid();
-  if (activeTab === "review")     renderReviewQueue();
-  if (activeTab === "app-review") renderAppReviewQueue();
-  if (activeTab === "continuum")  renderContinuum();
+  if (activeTab === "review")      renderReviewQueue();
+  if (activeTab === "app-review")  renderAppReviewQueue();
+  if (activeTab === "user-review") renderUserReviewQueue();
+  if (activeTab === "continuum")   renderContinuum();
   if (activeTab === "dashboard" && dashData) renderDashboard();
 }
 
@@ -879,7 +892,13 @@ function renderContinuum() {
 
     // SBBs + Apps
     let sbbHtml = "";
-    if (sbbs.length) {
+    if (level === "Foundation") {
+      sbbHtml += `<div class="ec-foundation-banner">
+        <div class="ec-foundation-icon">⬡</div>
+        <div class="ec-foundation-text">All solutions across all tiers are built on Foundation ABBs</div>
+        <div class="ec-foundation-sub">Every SBB below implements one or more Foundation contracts</div>
+      </div>`;
+    } else if (sbbs.length) {
       sbbHtml += sbbs.map(s => `
         <div class="ec-sbb-card ec-sbb-${s.status}" onclick="openSBBById(${s.id})">
           <div class="ec-sbb-name">${s.name}</div>
@@ -1278,11 +1297,79 @@ async function submitLogin(e) {
   }
 }
 
+// ── Profile & Change Password ──────────────────────────────────────────────
+
+function openProfileModal() {
+  if (!currentUser) return;
+  document.getElementById("prof-name").value = currentUser.name || "";
+  document.getElementById("prof-email").value = currentUser.email || "";
+  document.getElementById("prof-phone").value = currentUser.phone || "";
+  document.getElementById("prof-department").value = currentUser.department || "";
+  document.getElementById("prof-team").value = currentUser.team || "";
+  document.getElementById("prof-manager").value = currentUser.manager || "";
+  document.getElementById("prof-error").style.display = "none";
+  document.getElementById("prof-success").style.display = "none";
+  document.getElementById("user-chip-dropdown")?.classList.remove("open");
+  openModal("profile-modal");
+}
+
+document.getElementById("profile-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById("prof-error");
+  const okEl = document.getElementById("prof-success");
+  errEl.style.display = "none"; okEl.style.display = "none";
+  try {
+    const updated = await postJSON(`${API}/api/v1/auth/update-profile`, {
+      email: currentUser.email,
+      name: document.getElementById("prof-name").value.trim(),
+      phone: document.getElementById("prof-phone").value.trim() || null,
+      department: document.getElementById("prof-department").value.trim() || null,
+      team: document.getElementById("prof-team").value.trim() || null,
+      manager: document.getElementById("prof-manager").value.trim() || null,
+    });
+    currentUser = { ...currentUser, ...updated };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    renderCurrentUser();
+    okEl.style.display = "block";
+    setTimeout(() => closeModal("profile-modal"), 1200);
+  } catch (err) { errEl.textContent = err.message; errEl.style.display = "block"; }
+});
+
+function openChangePasswordModal() {
+  document.getElementById("cp-current").value = "";
+  document.getElementById("cp-new").value = "";
+  document.getElementById("cp-confirm").value = "";
+  document.getElementById("cp-error").style.display = "none";
+  document.getElementById("cp-success").style.display = "none";
+  document.getElementById("user-chip-dropdown")?.classList.remove("open");
+  openModal("change-password-modal");
+}
+
+document.getElementById("change-password-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById("cp-error");
+  const okEl = document.getElementById("cp-success");
+  errEl.style.display = "none"; okEl.style.display = "none";
+  const newPass = document.getElementById("cp-new").value;
+  const confirm = document.getElementById("cp-confirm").value;
+  if (newPass !== confirm) { errEl.textContent = "Passwords do not match"; errEl.style.display = "block"; return; }
+  if (newPass.length < 6) { errEl.textContent = "Password must be at least 6 characters"; errEl.style.display = "block"; return; }
+  try {
+    await postJSON(`${API}/api/v1/auth/change-password`, {
+      email: currentUser.email,
+      current_password: document.getElementById("cp-current").value,
+      new_password: newPass,
+    });
+    okEl.style.display = "block";
+    setTimeout(() => closeModal("change-password-modal"), 1200);
+  } catch (err) { errEl.textContent = err.message; errEl.style.display = "block"; }
+});
+
 function logout() {
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
   isAdminMode = false;
-  allPending = []; allPendingApps = []; allPendingUsers = []; allPendingUsers = [];
+  allPending = []; allPendingApps = []; allPendingUsers = [];
   document.getElementById("user-chip-dropdown")?.classList.remove("open");
   document.getElementById("login-email").value = "";
   document.getElementById("login-password").value = "";
@@ -1290,6 +1377,7 @@ function logout() {
   renderCurrentUser();
   applyAdminMode();
   updateReviewBadge();
+  switchTab("continuum");
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────

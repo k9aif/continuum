@@ -730,3 +730,11 @@ body.dark .login-error { background: #450a0a; }
   display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
 }
 .ec-empty-hint { font-style: italic; }
+
+.ec-foundation-banner {
+  padding: 14px 16px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 8px; margin-bottom: 8px; text-align: center;
+}
+.ec-foundation-icon { font-size: 20px; margin-bottom: 6px; color: var(--accent); }
+.ec-foundation-text { font-size: 12px; font-weight: 600; color: var(--accent); line-height: 1.4; }
+.ec-foundation-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }

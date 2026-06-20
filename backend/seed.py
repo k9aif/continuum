@@ -33,18 +33,6 @@ COMMON_SYSTEMS_ABBS = [
 ]
 
 EXAMPLE_SBBS = [
-    # ── Foundation — generic, no domain, reusable reference implementations ──
-    dict(name="TemplateAgent",              kind="Agent",
-         abb_names=["BaseAgent"],
-         description="Minimal reference implementation of BaseAgent — starting point for any custom agent. No domain specialization.",
-         tags=["template","reference","starter"],
-         project="k9-aif-framework",   published_by="ravinatarajan@k9x.ai", inspect_passed=True),
-    dict(name="TemplateOrchestrator",       kind="Orchestrator",
-         abb_names=["BaseOrchestrator","BaseGovernance"],
-         description="Reference orchestrator with governance gate wired — extend for your domain. Policy-checked on every agent call.",
-         tags=["template","reference","governance"],
-         project="k9-aif-framework",   published_by="ravinatarajan@k9x.ai", inspect_passed=True),
-
     # ── Common Systems — implement OOB k9-aif loop patterns ──────────────────
     dict(name="EOCValidationAgent",         kind="Agent",
          abb_names=["K9ValidationLoopAgent","BaseAgent"],

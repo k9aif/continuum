@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>k9x Enterprise Continuum</title>
-  <link rel="stylesheet" href="/static/app.css?v=14" />
-  <script src="/static/app.js?v=14" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=17" />
+  <script src="/static/app.js?v=17" defer></script>
 </head>
 <body>
 
@@ -203,6 +203,8 @@
             <div class="ucd-item admin-only ucd-soon">Groups <span class="soon-badge">soon</span></div>
             <div class="ucd-item admin-only" onclick="switchTabFromChip('projects')">Projects</div>
             <div class="ucd-separator"></div>
+            <div class="ucd-item" onclick="openProfileModal()">My Profile</div>
+            <div class="ucd-item" onclick="openChangePasswordModal()">Change Password</div>
             <div class="ucd-item ucd-logout" onclick="logout()">Sign out</div>
           </div>
         </div>
@@ -692,6 +694,72 @@
     <div class="form-actions">
       <button class="btn btn-primary" onclick="closeModal('help-modal')">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- Profile modal -->
+<div id="profile-modal" class="modal-overlay">
+  <div class="modal login-card" style="max-width:440px">
+    <div class="login-brand"><h2>My Profile</h2></div>
+    <form id="profile-form">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" id="prof-name" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="prof-email" class="form-input" disabled />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" id="prof-phone" class="form-input" placeholder="Optional" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <input type="text" id="prof-department" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Team</label>
+        <input type="text" id="prof-team" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Manager</label>
+        <input type="text" id="prof-manager" class="form-input" placeholder="Optional" />
+      </div>
+      <div id="prof-error" class="form-error" style="display:none"></div>
+      <div id="prof-success" class="form-success" style="display:none">Profile updated.</div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-ghost" onclick="closeModal('profile-modal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Change password modal -->
+<div id="change-password-modal" class="modal-overlay">
+  <div class="modal login-card">
+    <div class="login-brand"><h2>Change Password</h2></div>
+    <form id="change-password-form">
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input type="password" id="cp-current" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" id="cp-new" class="form-input" required minlength="6" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" id="cp-confirm" class="form-input" required minlength="6" />
+      </div>
+      <div id="cp-error" class="form-error" style="display:none"></div>
+      <div id="cp-success" class="form-success" style="display:none">Password changed successfully.</div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button type="submit" class="btn btn-primary">Change Password</button>
+        <button type="button" class="btn btn-ghost" onclick="closeModal('change-password-modal')">Cancel</button>
+      </div>
+    </form>
   </div>
 </div>
 

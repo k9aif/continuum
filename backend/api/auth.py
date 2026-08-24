@@ -5,8 +5,13 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.database import get_db
 from backend.models import User, UserOut
+from backend.auth_deps import create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+
+class LoginResponse(UserOut):
+    token: str
 
 
 class LoginRequest(BaseModel):
@@ -26,14 +31,14 @@ def _hash(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 
-@router.post("/login", response_model=UserOut)
+@router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or user.password_hash != _hash(payload.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account pending admin approval")
-    return user
+    return LoginResponse(**UserOut.model_validate(user).model_dump(), token=create_access_token(user))
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
@@ -62,7 +67,10 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/change-password")
-def change_password(payload: ChangePasswordRequest, db: Session = Depends(get_db)):
+def change_password(payload: ChangePasswordRequest, db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)):
+    if payload.email != current_user.email:
+        raise HTTPException(status_code=403, detail="Cannot change another user's password")
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or user.password_hash != _hash(payload.current_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
@@ -84,7 +92,10 @@ class UpdateProfileRequest(BaseModel):
 
 
 @router.post("/update-profile", response_model=UserOut)
-def update_profile(payload: UpdateProfileRequest, db: Session = Depends(get_db)):
+def update_profile(payload: UpdateProfileRequest, db: Session = Depends(get_db),
+                    current_user: User = Depends(get_current_user)):
+    if payload.email != current_user.email:
+        raise HTTPException(status_code=403, detail="Cannot update another user's profile")
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

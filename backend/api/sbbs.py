@@ -6,6 +6,7 @@ from sqlalchemy import func as sqlfunc
 from typing import List, Optional
 from backend.database import get_db
 from backend.models import SBB, SBBCreate, SBBOut, SBBReviewOut, AuditLog, User
+from backend.auth_deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/v1/sbbs", tags=["SBBs"])
 
@@ -63,7 +64,7 @@ def _check_rate_limit(db: Session, actor: Optional[str]):
 # ── Review queue (must come before /{sbb_id}) ────────────────────────────────
 
 @router.get("/review-queue", response_model=List[SBBReviewOut])
-def review_queue(db: Session = Depends(get_db)):
+def review_queue(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     sbbs = (db.query(SBB)
               .filter(SBB.status == "pending_review")
               .order_by(SBB.created_at.asc())
@@ -91,6 +92,7 @@ def list_sbbs(
     status: Optional[str] = None,
     abb_name: Optional[str] = None,
     db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     q = db.query(SBB)
     if search:
@@ -107,7 +109,7 @@ def list_sbbs(
 
 
 @router.get("/{sbb_id}", response_model=SBBOut)
-def get_sbb(sbb_id: int, db: Session = Depends(get_db)):
+def get_sbb(sbb_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")
@@ -115,7 +117,7 @@ def get_sbb(sbb_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=SBBOut, status_code=201)
-def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db)):
+def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     if not payload.inspect_passed:
         raise HTTPException(status_code=422, detail="k9aif inspect must pass before submitting")
     user = _validate_sbb(payload, db)
@@ -133,7 +135,8 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{sbb_id}/approve", response_model=SBBOut)
-def approve_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db)):
+def approve_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
+                 _: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(404, "SBB not found")
@@ -148,7 +151,7 @@ def approve_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(
 
 @router.patch("/{sbb_id}/reject", response_model=SBBOut)
 def reject_sbb(sbb_id: int, actor: Optional[str] = None, reason: Optional[str] = None,
-               db: Session = Depends(get_db)):
+               db: Session = Depends(get_db), _: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(404, "SBB not found")
@@ -162,7 +165,8 @@ def reject_sbb(sbb_id: int, actor: Optional[str] = None, reason: Optional[str] =
 
 
 @router.patch("/{sbb_id}/promote", response_model=SBBOut)
-def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db)):
+def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
+                 _: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")
@@ -178,7 +182,8 @@ def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(
 
 
 @router.delete("/{sbb_id}", status_code=204)
-def delete_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db)):
+def delete_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
+                _: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")

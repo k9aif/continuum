@@ -5,6 +5,7 @@ from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from backend.database import get_db, SCHEMA
 from backend.models import AuditLog, AuditLogOut, SBB, Application, User
+from backend.auth_deps import require_admin
 
 router = APIRouter(prefix="/api/v1/audit", tags=["Audit"])
 
@@ -15,6 +16,7 @@ def list_audit(
     entity_id: Optional[int] = None,
     limit: int = 50,
     db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     q = db.query(AuditLog)
     if entity:
@@ -25,7 +27,7 @@ def list_audit(
 
 
 @router.get("/summary")
-def audit_summary(days: int = 30, db: Session = Depends(get_db)):
+def audit_summary(days: int = 30, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
     # Activity by day (last N days)

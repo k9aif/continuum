@@ -3,6 +3,7 @@
 const API = "";
 let activeTab = "continuum";
 let currentUser = null;
+let authToken = null;
 let isAdminMode = false;
 let allSBBs = [], allABBs = [], allApps = [], allUsers = [], allPending = [], allPendingApps = [];
 let pendingRejectId = null, pendingRejectType = null;
@@ -31,23 +32,33 @@ function updateThemeIcon() {
 }
 
 // ── Fetch helpers ──────────────────────────────────────────────────────────
+function authHeaders(extra = {}) {
+  return authToken ? { ...extra, "Authorization": "Bearer " + authToken } : extra;
+}
+function handleAuthError(r) {
+  if (r.status === 401) { logout(); throw new Error("Session expired"); }
+}
 async function fetchJSON(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, { headers: authHeaders() });
+  handleAuthError(r);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 async function postJSON(url, body) {
-  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(url, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
+  handleAuthError(r);
   if (!r.ok) { const e = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(e.detail || r.statusText); }
   return r.json();
 }
 async function patchJSON(url, body = {}) {
-  const r = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(url, { method: "PATCH", headers: authHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
+  handleAuthError(r);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 async function del(url) {
-  const r = await fetch(url, { method: "DELETE" });
+  const r = await fetch(url, { method: "DELETE", headers: authHeaders() });
+  handleAuthError(r);
   if (!r.ok) throw new Error(await r.text());
 }
 
@@ -1287,10 +1298,16 @@ async function submitLogin(e) {
     const user = await postJSON(`${API}/api/v1/auth/login`, { email, password });
     localStorage.setItem(SESSION_KEY, JSON.stringify(user));
     currentUser = user;
+    authToken = user.token;
     isAdminMode = user.role === "admin";
     closeModal("login-modal");
     renderCurrentUser();
-    await Promise.all([loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue(), loadUsers()]);
+    // Catalog data wasn't loaded pre-login (anonymous visitors can't reach it) — load it now.
+    const loads = [loadABBs(), loadSBBs(), loadApps()];
+    if (isAdminMode) loads.push(loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue(), loadUsers());
+    await Promise.all(loads);
+    renderABBList();
+    renderContinuum();
   } catch (err) {
     errEl.textContent = err.message;
     errEl.style.display = "";
@@ -1368,6 +1385,7 @@ document.getElementById("change-password-form")?.addEventListener("submit", asyn
 function logout() {
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
+  authToken = null;
   isAdminMode = false;
   allPending = []; allPendingApps = []; allPendingUsers = [];
   document.getElementById("user-chip-dropdown")?.classList.remove("open");
@@ -1388,6 +1406,7 @@ async function init() {
   const saved = localStorage.getItem(SESSION_KEY);
   if (saved) {
     currentUser = JSON.parse(saved);
+    authToken = currentUser.token;
     isAdminMode = currentUser.role === "admin";
   }
   document.getElementById("login-form").onsubmit    = submitLogin;
@@ -1445,7 +1464,14 @@ async function init() {
   });
 
   renderCurrentUser();
-  await Promise.all([loadABBs(), loadSBBs(), loadApps(), loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue()]);
+  // Catalog/app data requires an authenticated session; user records and review
+  // queues are admin-only. Backend enforces both — this mirrors it so anonymous
+  // and non-admin visitors don't fire requests that will 401/403.
+  if (currentUser) {
+    const loads = [loadABBs(), loadSBBs(), loadApps()];
+    if (isAdminMode) loads.push(loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue());
+    await Promise.all(loads);
+  }
   renderABBList();
   renderContinuum();
 }

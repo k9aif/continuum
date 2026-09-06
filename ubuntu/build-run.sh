@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# k9x_continuum — Podman build and deploy helper
+# k9x_continuum — build and run helper (single container, no pod needed)
 # Run from any directory on the Podman host (no sudo needed — script handles it).
 #
 # Commands:
 #   build   — build the k9x-continuum container image
-#   secret  — store the Postgres password as a Podman secret
-#   up      — deploy k9-continuum-pod (1 container)
-#   down    — stop and remove the pod
-#   status  — show pod and container status
-#   logs    — tail app-backend logs
-#   all     — build + secret + up in one step
+#   start   — start the container (port 8085)
+#   stop    — stop the container
+#   logs    — tail logs
+#   all     — build + start
+#
+# NOTE: the root-level Dockerfile + k9x-continuum.service (bare-metal venv
+# deployment) also exist in this repo as an alternative path — don't run
+# both at once, they'd both bind :8085.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 IMAGE="k9x-continuum:latest"
-POD_NAME="k9-continuum-pod"
+CONTAINER="k9x-continuum"
 
 cmd="${1:-help}"
 
@@ -29,26 +31,17 @@ case "$cmd" in
     echo "Build complete: $IMAGE"
     ;;
 
-  secret)
+  start)
     ENV_FILE="$PROJECT_DIR/.env"
     [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found."; exit 1; }
-    PG_PW=$(grep -E '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
-    if [[ -z "$PG_PW" ]]; then
-      echo "Error: POSTGRES_PASSWORD not found in .env"; exit 1
-    fi
-    if sudo podman secret exists continuum-pg-password 2>/dev/null; then
-      sudo podman secret rm continuum-pg-password
-    fi
-    printf '%s' "$PG_PW" | sudo podman secret create continuum-pg-password -
-    echo "Secret 'continuum-pg-password' stored."
-    ;;
-
-  up)
-    echo "Deploying pod: $POD_NAME (1 container) ..."
-    sudo podman play kube "$SCRIPT_DIR/continuum-pod.yaml" --replace
-    echo ""
-    echo "Pod running. Containers:"
-    sudo podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
+    echo "Starting $CONTAINER on port 8085 ..."
+    sudo podman rm -f "$CONTAINER" 2>/dev/null || true
+    sudo podman run -d \
+      --name "$CONTAINER" \
+      --restart=always \
+      -p 8085:8085 \
+      --env-file "$ENV_FILE" \
+      "$IMAGE"
     echo ""
     HOST_IP=$(hostname -I | awk '{print $1}')
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -56,34 +49,21 @@ case "$cmd" in
     echo "  Web UI:  http://${HOST_IP}:8085/"
     echo "  Health:  http://${HOST_IP}:8085/health"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Logs:"
-    echo "  sudo podman logs -f ${POD_NAME}-app-backend"
     ;;
 
-  down)
-    echo "Stopping pod: $POD_NAME ..."
-    sudo podman play kube "$SCRIPT_DIR/continuum-pod.yaml" --down || true
-    echo "Pod stopped."
-    ;;
-
-  status)
-    echo "=== Pod ==="
-    sudo podman pod ps --filter "name=$POD_NAME"
-    echo ""
-    echo "=== Containers ==="
-    sudo podman ps -a --filter "pod=$POD_NAME" \
-      --format "table {{.Names}}\t{{.Status}}\t{{.RestartCount}}\t{{.Command}}"
+  stop)
+    echo "Stopping $CONTAINER ..."
+    sudo podman stop "$CONTAINER" 2>/dev/null || true
+    echo "Stopped."
     ;;
 
   logs)
-    sudo podman logs -f "${POD_NAME}-app-backend"
+    sudo podman logs -f "$CONTAINER"
     ;;
 
   all)
     "$0" build
-    "$0" secret
-    "$0" up
+    "$0" start
     ;;
 
   help|*)
@@ -91,12 +71,10 @@ case "$cmd" in
     echo ""
     echo "Commands:"
     echo "  build   — build the Podman image ($IMAGE)"
-    echo "  secret  — store the Postgres password as a Podman secret"
-    echo "  up      — deploy $POD_NAME (1 container)"
-    echo "  down    — stop and remove the pod"
-    echo "  status  — show pod and container status"
-    echo "  logs    — tail app-backend logs"
-    echo "  all     — build + secret + up in one step"
+    echo "  start   — start the container (port 8085)"
+    echo "  stop    — stop the container"
+    echo "  logs    — tail logs"
+    echo "  all     — build + start"
     ;;
 
 esac

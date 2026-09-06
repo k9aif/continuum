@@ -1,0 +1,25 @@
+[Unit]
+Description=k9x_continuum — k9-continuum-pod (1-container Podman pod)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Set this to wherever k9x_continuum (aka "continuum") is actually cloned
+# on this host before installing — see install-service.sh.
+Environment=CONTINUUM_DEPLOY_DIR=/home/ravinata/ai/continuum
+
+ExecStart=/usr/bin/podman play kube \
+    ${CONTINUUM_DEPLOY_DIR}/ubuntu/continuum-pod.yaml \
+    --replace
+
+ExecStop=/usr/bin/podman play kube \
+    ${CONTINUUM_DEPLOY_DIR}/ubuntu/continuum-pod.yaml \
+    --down
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

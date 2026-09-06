@@ -1,0 +1,32 @@
+# k9x_continuum — Enterprise Continuum catalog (governed SBB/ABB publish,
+# promote, harvest workflow)
+# Single container, no pod needed (one FastAPI process, no background workers).
+#
+# Build (from this project's root):
+#   podman build -t k9x-continuum:latest -f ubuntu/Containerfile .
+
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+USER root
+RUN dnf install -y --nodocs libpq-devel && dnf clean all
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./backend/
+COPY webui/   ./webui/
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8085
+
+HEALTHCHECK --interval=30s --timeout=8s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8085/health')" \
+      || exit 1
+
+USER 1001
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8085", "--log-level", "info"]

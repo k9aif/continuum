@@ -92,7 +92,6 @@ def list_sbbs(
     status: Optional[str] = None,
     abb_name: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     q = db.query(SBB)
     if search:
@@ -109,7 +108,7 @@ def list_sbbs(
 
 
 @router.get("/{sbb_id}", response_model=SBBOut)
-def get_sbb(sbb_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_sbb(sbb_id: int, db: Session = Depends(get_db)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")

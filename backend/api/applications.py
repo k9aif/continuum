@@ -60,7 +60,6 @@ def list_apps(
     domain: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     q = db.query(Application)
     if search:
@@ -76,7 +75,7 @@ def list_apps(
 
 
 @router.get("/{app_id}", response_model=ApplicationOut)
-def get_app(app_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_app(app_id: int, db: Session = Depends(get_db)):
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")

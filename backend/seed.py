@@ -149,6 +149,17 @@ def seed_examples():
                 role="admin",
                 password_hash=hashlib.sha256(b"changeme").hexdigest(),
             ))
+
+        # Demo account — visible on the login splash so visitors can explore
+        # without a real account. Guest role: can browse/register, cannot
+        # approve/reject/delete (those stay require_admin-gated).
+        if not db.query(User).filter(User.email == "demo").first():
+            db.add(User(
+                name="Demo User",
+                email="demo",
+                role="guest",
+                password_hash=hashlib.sha256(b"demo").hexdigest(),
+            ))
         db.commit()
     finally:
         db.close()

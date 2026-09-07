@@ -1302,7 +1302,8 @@ async function submitLogin(e) {
     isAdminMode = user.role === "admin";
     closeModal("login-modal");
     renderCurrentUser();
-    // Catalog data wasn't loaded pre-login (anonymous visitors can't reach it) — load it now.
+    // Catalog data is already loaded pre-login (public); re-fetch here mainly
+    // to pick up the admin-only lists now that isAdminMode may have changed.
     const loads = [loadABBs(), loadSBBs(), loadApps()];
     if (isAdminMode) loads.push(loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue(), loadUsers());
     await Promise.all(loads);
@@ -1464,14 +1465,13 @@ async function init() {
   });
 
   renderCurrentUser();
-  // Catalog/app data requires an authenticated session; user records and review
-  // queues are admin-only. Backend enforces both — this mirrors it so anonymous
-  // and non-admin visitors don't fire requests that will 401/403.
-  if (currentUser) {
-    const loads = [loadABBs(), loadSBBs(), loadApps()];
-    if (isAdminMode) loads.push(loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue());
-    await Promise.all(loads);
-  }
+  // Catalog/app data is public — anonymous visitors can browse without logging
+  // in (backend has no auth on these GET endpoints). Only user records and
+  // review queues are admin-only, gated behind isAdminMode to match the
+  // backend's own admin-only enforcement on those.
+  const loads = [loadABBs(), loadSBBs(), loadApps()];
+  if (isAdminMode) loads.push(loadUsers(), loadReviewQueue(), loadAppReviewQueue(), loadUserReviewQueue());
+  await Promise.all(loads);
   renderABBList();
   renderContinuum();
 }

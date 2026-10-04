@@ -2,6 +2,23 @@ from datetime import datetime, timezone
 from backend.database import SessionLocal
 from backend.models import ABB, SBB, Application, User
 import hashlib
+import logging
+import os
+import secrets
+
+log = logging.getLogger("k9x-continuum.seed")
+
+# sha256 of the admin password shipped (and shown on the login splash) before this change
+_RETIRED_ADMIN_HASH = hashlib.sha256(b"changeme").hexdigest()
+
+
+def _admin_password_hash() -> str:
+    """CONTINUUM_ADMIN_PASSWORD, never shown or committed; random (unusable) when unset."""
+    pw = os.environ.get("CONTINUUM_ADMIN_PASSWORD", "")
+    if not pw:
+        log.warning("CONTINUUM_ADMIN_PASSWORD not set: the admin account gets a random password (cannot sign in)")
+        return hashlib.sha256(secrets.token_bytes(32)).hexdigest()
+    return hashlib.sha256(pw.encode()).hexdigest()
 
 FOUNDATION_ABBS = [
     ("BaseRouter",          "Router",        "Routes events to domain orchestrators by event type",               "k9_core.router"),
@@ -142,13 +159,18 @@ def seed_examples():
             if not db.query(Application).filter(Application.name == data["name"]).first():
                 db.add(Application(**data))
 
-        if not db.query(User).filter(User.email == "ravinatarajan@k9x.ai").first():
+        admin = db.query(User).filter(User.email == "ravinatarajan@k9x.ai").first()
+        if not admin:
             db.add(User(
                 name="Ravi Natarajan",
                 email="ravinatarajan@k9x.ai",
                 role="admin",
-                password_hash=hashlib.sha256(b"changeme").hexdigest(),
+                password_hash=_admin_password_hash(),
             ))
+        elif admin.password_hash == _RETIRED_ADMIN_HASH:
+            # the password published earlier no longer works
+            admin.password_hash = _admin_password_hash()
+            log.warning("admin: retired published password replaced")
 
         # Demo account — visible on the login splash so visitors can explore
         # without a real account. Guest role: can browse/register, cannot

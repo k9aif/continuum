@@ -48,6 +48,7 @@ def _migrate():
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS git_ref      VARCHAR(500)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_by  VARCHAR(255)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_at  TIMESTAMP",
+            f"ALTER TABLE {SCHEMA}.abbs        ADD COLUMN IF NOT EXISTS harvested_from INTEGER",
         ]
         for sql in migrations:
             conn.execute(__import__("sqlalchemy").text(sql))
@@ -61,11 +62,15 @@ def startup():
     _migrate()
     seed_abbs()
     seed_examples()
+    # Review routing and harvesting decisions from K9X HIL (CONTINUUM_HIL_ENABLED)
+    from backend import hil_bridge
+    hil_bridge.start_reply_consumer()
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "schema": SCHEMA}
+    from backend import hil_bridge
+    return {"status": "ok", "schema": SCHEMA, "hil_routing": hil_bridge.enabled()}
 
 
 @app.get("/{full_path:path}")

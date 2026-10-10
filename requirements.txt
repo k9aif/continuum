@@ -6,3 +6,4 @@ sqlalchemy>=2.0
 python-dotenv>=1.0
 python-multipart>=0.0.9
 pyjwt>=2.8
+kafka-python>=2.3.0

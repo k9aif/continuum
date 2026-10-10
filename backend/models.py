@@ -67,7 +67,28 @@ class ABB(Base):
     description = Column(Text)
     level       = Column(String(50))   # Foundation | CommonSystems | Industry | OrgSpecific
     module      = Column(String(255))
+    harvested_from = Column(Integer)   # SBB id when the ABB was harvested from an SBB
     created_at  = Column(DateTime, server_default=func.now())
+
+
+class AbbNomination(Base):
+    """An approved SBB nominated for generalization into an ABB (harvesting). The Architecture
+    Board decides in K9X HIL; approval creates the ABB (backend/hil_bridge.py)."""
+    __tablename__ = "abb_nominations"
+    __table_args__ = {"schema": _SCHEMA}
+
+    id           = Column(Integer, primary_key=True)
+    sbb_id       = Column(Integer, nullable=False)
+    abb_name     = Column(String(255), nullable=False)
+    level        = Column(String(50), default="CommonSystems")
+    description  = Column(Text)          # the generalized contract
+    nominated_by = Column(String(255))
+    status       = Column(String(20), default="pending")   # pending | approved | rejected
+    sent_to_hil  = Column(Boolean, default=False)
+    decided_by   = Column(String(255))
+    decided_at   = Column(DateTime)
+    abb_id       = Column(Integer)
+    created_at   = Column(DateTime, server_default=func.now())
 
 
 class SBB(Base):
@@ -188,6 +209,30 @@ class ABBOut(BaseModel):
     description: Optional[str]
     level: Optional[str]
     module: Optional[str]
+    harvested_from: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
+class NominationCreate(BaseModel):
+    abb_name: str
+    level: str = "CommonSystems"
+    description: str
+
+
+class NominationOut(BaseModel):
+    id: int
+    sbb_id: int
+    abb_name: str
+    level: Optional[str]
+    description: Optional[str]
+    nominated_by: Optional[str]
+    status: str
+    sent_to_hil: bool
+    decided_by: Optional[str]
+    decided_at: Optional[datetime]
+    abb_id: Optional[int]
+    created_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
 

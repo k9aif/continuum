@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
 from typing import List, Optional
 from backend.database import get_db
-from backend.models import SBB, SBBCreate, SBBOut, SBBReviewOut, AuditLog, User
+from backend.models import (SBB, SBBCreate, SBBOut, SBBReviewOut, AuditLog, User, AbbNomination,
+                            NominationCreate, NominationOut)
+from backend import hil_bridge
 from backend.auth_deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/v1/sbbs", tags=["SBBs"])
@@ -130,6 +132,11 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Dep
     _log(db, sbb.id, "submitted", actor=payload.published_by, project=payload.project, note=note)
     db.commit()
     db.refresh(sbb)
+    # Review routing: the reviewer decides in K9X HIL; the decision comes back over Kafka.
+    if hil_bridge.enabled() and hil_bridge.publish(hil_bridge.review_task(sbb)):
+        _log(db, sbb.id, "sent_to_hil", actor="K9X Continuum", project=sbb.project,
+             note=f"review task {hil_bridge.task_topic()}")
+        db.commit()
     return sbb
 
 
@@ -178,6 +185,46 @@ def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(
     db.commit()
     db.refresh(sbb)
     return sbb
+
+
+# ── Harvesting: nominate an approved SBB for generalization into an ABB ──────
+
+@router.post("/{sbb_id}/nominate-abb", response_model=NominationOut, status_code=201)
+def nominate_abb(sbb_id: int, payload: NominationCreate, db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
+    """Raise an Architecture Board task in K9X HIL; approval there creates the ABB."""
+    sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
+    if not sbb:
+        raise HTTPException(404, "SBB not found")
+    if sbb.status not in ("published", "promoted"):
+        raise HTTPException(422, "Only approved (published or promoted) SBBs can be nominated")
+    name = payload.abb_name.strip()
+    if not re.match(r'^[A-Z][A-Za-z0-9_]+$', name):
+        raise HTTPException(422, "ABB name must be PascalCase (e.g. BaseClaimsTriageAgent)")
+    if payload.level not in ("Foundation", "CommonSystems", "Industry", "OrgSpecific"):
+        raise HTTPException(422, "Level must be Foundation, CommonSystems, Industry or OrgSpecific")
+    if len((payload.description or "").strip()) < 20:
+        raise HTTPException(422, "Describe the generalized contract (at least 20 characters)")
+    if db.query(AbbNomination).filter(AbbNomination.sbb_id == sbb_id, AbbNomination.status == "pending").first():
+        raise HTTPException(409, "This SBB already has a pending nomination")
+    if not hil_bridge.enabled():
+        raise HTTPException(503, "Architecture Board review runs in K9X HIL, which is not enabled here")
+    nom = AbbNomination(sbb_id=sbb_id, abb_name=name, level=payload.level,
+                        description=payload.description.strip(), nominated_by=user.email)
+    db.add(nom)
+    db.flush()
+    nom.sent_to_hil = hil_bridge.publish(hil_bridge.harvest_task(nom, sbb))
+    _log(db, sbb.id, "nominated", actor=user.email, project=sbb.project,
+         note=f"ABB {name} ({payload.level})" + ("; sent to K9X HIL" if nom.sent_to_hil else "; HIL publish failed"))
+    db.commit()
+    db.refresh(nom)
+    return nom
+
+
+@router.get("/{sbb_id}/nominations", response_model=List[NominationOut])
+def sbb_nominations(sbb_id: int, db: Session = Depends(get_db)):
+    return (db.query(AbbNomination).filter(AbbNomination.sbb_id == sbb_id)
+              .order_by(AbbNomination.created_at.desc()).all())
 
 
 @router.delete("/{sbb_id}", status_code=204)

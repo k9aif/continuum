@@ -422,12 +422,52 @@ async function openSBBDetail(s) {
       ${row("Last updated", fmtDate(s.updated_at))}
     </div>
     ${auditHtml}
+    <div id="nom-section"></div>
     <div class="detail-actions">
+      ${currentUser && ["published", "promoted"].includes(s.status) ? `<button class="btn btn-ghost btn-sm" onclick="showNominate(${s.id})" title="Nominate this SBB for generalization into an ABB; the Architecture Board decides in K9X HIL">Nominate as ABB</button>` : ""}
       ${currentUser?.role === "admin" && s.status === "published" ? `<button class="btn btn-primary btn-sm" onclick="promoteSBB(${s.id})">Promote</button>` : ""}
       ${currentUser?.role === "admin" ? `<button class="btn btn-danger btn-sm" onclick="deleteSBB(${s.id})">Delete</button>` : ""}
       <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')">Close</button>
     </div>`;
   openModal("detail-modal");
+  loadNominations(s.id);
+}
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// ── Harvesting: SBB → ABB nomination, decided by the Architecture Board in K9X HIL ──
+async function loadNominations(sbbId) {
+  const el = document.getElementById("nom-section"); if (!el) return;
+  let noms = [];
+  try { noms = await fetchJSON(`${API}/api/v1/sbbs/${sbbId}/nominations`); } catch (_) {}
+  el.innerHTML = noms.length ? `<div class="detail-section"><h3>ABB harvesting</h3>` + noms.map(n => `
+    <div class="audit-row"><span class="audit-action">${esc(n.abb_name)} (${esc(n.level || "")})</span>
+      <span class="audit-actor">${n.status === "pending" ? (n.sent_to_hil ? "Architecture Board review in K9X HIL" : "not sent to K9X HIL") : n.status + " by " + esc(n.decided_by || "?")}</span>
+      <span class="audit-time">${fmtDate(n.decided_at || n.created_at)}</span></div>`).join("") + `</div>` : "";
+}
+function showNominate(sbbId) {
+  const el = document.getElementById("nom-section");
+  el.innerHTML = `<div class="detail-section"><h3>Nominate as ABB</h3>
+    <form onsubmit="submitNomination(event, ${sbbId})" style="display:flex;flex-direction:column;gap:6px">
+      <input id="n-name" placeholder="ABB name (PascalCase, e.g. BaseClaimsTriageAgent)" required>
+      <select id="n-level"><option>CommonSystems</option><option>Industry</option><option>Foundation</option><option>OrgSpecific</option></select>
+      <textarea id="n-desc" rows="3" placeholder="The generalized contract: what any implementation must provide" required></textarea>
+      <button class="btn btn-primary btn-sm" type="submit">Send to the Architecture Board (K9X HIL)</button>
+    </form></div>`;
+  document.getElementById("n-name").focus();
+}
+async function submitNomination(e, sbbId) {
+  e.preventDefault();
+  try {
+    await postJSON(`${API}/api/v1/sbbs/${sbbId}/nominate-abb`, {
+      abb_name: document.getElementById("n-name").value.trim(),
+      level: document.getElementById("n-level").value,
+      description: document.getElementById("n-desc").value.trim()});
+    toast("Nominated: the Architecture Board decides in K9X HIL");
+    loadNominations(sbbId);
+  } catch (err) { toast(err.message, "error"); }
 }
 
 function openABBDetail(a) {
@@ -440,6 +480,7 @@ function openABBDetail(a) {
       ${row("Kind",   a.kind)}
       ${row("Level",  a.level)}
       ${row("Module", a.module)}
+      ${a.harvested_from ? `<div class="detail-row"><span class="detail-key">Harvested from</span><span class="detail-value"><a href="#" onclick="openSBBById(${a.harvested_from}); return false;">SBB ${(allSBBs.find(x => x.id === a.harvested_from) || {}).name || a.harvested_from}</a> (Architecture Board, K9X HIL)</span></div>` : ""}
     </div>
     ${implementing.length ? `<div class="detail-section"><h3>Implementing SBBs (${implementing.length})</h3>` +
       implementing.map(s => `<div class="detail-row">
@@ -566,7 +607,7 @@ async function submitPublish(e) {
   };
   try {
     await postJSON(`${API}/api/v1/sbbs`, payload);
-    toast("SBB submitted for review");
+    toast("SBB submitted for review (routed to K9X HIL when enabled)");
     closeModal("publish-modal");
     await Promise.all([loadSBBs(), loadReviewQueue()]);
   } catch(err) { toast(err.message, "error"); }

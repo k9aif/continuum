@@ -4,10 +4,105 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>k9x Enterprise Continuum</title>
-  <link rel="stylesheet" href="/static/app.css?v=18" />
-  <script src="/static/app.js?v=18" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=19" />
+  <script src="/static/app.js?v=19" defer></script>
 </head>
 <body>
+
+<!-- Public landing page (K9X landing standard): shown to visitors who are not signed in. "Explore the catalog"
+     enters the public catalog, "Try the demo" signs in as demo, "Sign in" opens the login form. -->
+<div id="landing" class="cl-landing" style="display:none">
+  <header class="cl-top">
+    <div class="cl-brand"><a href="https://k9x.ai" target="_blank" rel="noopener">K9X</a> Enterprise Continuum</div>
+    <nav class="cl-nav">
+      <a href="#cl-what">What it does</a><a href="#cl-how">How it works</a><a href="#cl-arch">Architecture</a><a href="#cl-scope">Scope</a>
+    </nav>
+    <div class="cl-top-actions">
+      <button class="cl-btn cl-btn-ghost" onclick="enterCatalog()">Explore</button>
+      <button class="cl-btn cl-btn-primary" onclick="landingSignIn()">Sign in</button>
+    </div>
+  </header>
+
+  <section class="cl-hero">
+    <div class="cl-eyebrow">TOGAF Enterprise Continuum · for agentic AI</div>
+    <h1>Reuse what works.<br><span>Govern what gets reused.</span></h1>
+    <p class="cl-lede">The curated catalog of building blocks for applications built on K9-AIF: architecture building blocks
+      (the framework's contracts) and the solution building blocks teams build on them, classified from Foundation to your
+      own organization. Only what conforms gets in, and what proves itself is harvested for every team.</p>
+    <div class="cl-cta">
+      <button class="cl-btn cl-btn-primary cl-btn-lg" onclick="tryDemo()">Try the demo →</button>
+      <button class="cl-btn cl-btn-ghost cl-btn-lg" onclick="enterCatalog()">Explore the catalog</button>
+      <button class="cl-btn cl-btn-ghost cl-btn-lg" onclick="landingSignIn()">Sign in</button>
+    </div>
+    <div class="cl-demo">Demo login <code>demo</code> / <code>demo</code>: browse and register. Public demonstration with sample data; do not enter real information.</div>
+    <div id="cl-demo-error" class="cl-demo-error" style="display:none"></div>
+  </section>
+
+  <section class="cl-section" id="cl-what">
+    <div class="cl-label">What it does</div>
+    <h2>A catalog with a gate, a review and a way up</h2>
+    <div class="cl-cards">
+      <div class="cl-card"><div class="cl-ico">▦</div><h3>Building blocks</h3><p>ABBs (framework contracts such as BaseAgent and BaseGovernance) and SBBs (working implementations), placed Foundation → Common Systems → Industry → Organization.</p></div>
+      <div class="cl-card"><div class="cl-ico">✓</div><h3>Publish gate</h3><p>A solution building block enters only if <code>k9aif inspect</code> passes against the contract it claims. Non-conforming code never reaches the catalog.</p></div>
+      <div class="cl-card"><div class="cl-ico">⇄</div><h3>Review</h3><p>Submit → pending review → published, every step in the audit trail. The review can be a tracked task in K9X HIL, decided by a person.</p></div>
+      <div class="cl-card"><div class="cl-ico">↑</div><h3>Harvesting</h3><p>A proven SBB is nominated to become an ABB. The Architecture Board decides in K9X HIL, and approval creates the new building block for every team.</p></div>
+      <div class="cl-card"><div class="cl-ico">◫</div><h3>Applications</h3><p>Every application built on K9-AIF, its status and the building blocks it uses: see what exists before building it again.</p></div>
+      <div class="cl-card"><div class="cl-ico">⌂</div><h3>Linked to the Repository</h3><p>The architecture itself (specs, diagrams, decisions, standards, links to the code) lives in the K9X Enterprise Repository; the Continuum classifies it.</p></div>
+    </div>
+  </section>
+
+  <section class="cl-section cl-alt" id="cl-how">
+    <div class="cl-label">How it works</div>
+    <h2>From one team's code to every team's building block</h2>
+    <div class="cl-steps">
+      <div class="cl-step"><b>1</b><h3>Build</h3><p>A team builds an SBB on a framework ABB contract.</p></div>
+      <div class="cl-step"><b>2</b><h3>Inspect</h3><p><code>k9aif inspect</code> checks it against that contract.</p></div>
+      <div class="cl-step"><b>3</b><h3>Review</h3><p>A reviewer approves it in K9X HIL; it is published.</p></div>
+      <div class="cl-step"><b>4</b><h3>Reuse</h3><p>Other teams find it and build on it, not from scratch.</p></div>
+      <div class="cl-step"><b>5</b><h3>Harvest</h3><p>Proven in use, it is nominated and the Architecture Board makes it an ABB.</p></div>
+    </div>
+  </section>
+
+  <section class="cl-section" id="cl-arch">
+    <div class="cl-label">Architecture</div>
+    <h2>Where the Continuum sits</h2>
+    <div class="cl-arch">
+      <div class="cl-node">Teams<small>build SBBs on K9-AIF</small></div>
+      <div class="cl-arrow">→<small>k9aif inspect</small></div>
+      <div class="cl-node cl-node-main">K9X Enterprise Continuum<small>catalog · publish gate · review · harvest · audit</small></div>
+      <div class="cl-arrow">⇄<small>review &amp; board tasks (Kafka)</small></div>
+      <div class="cl-node">K9X HIL<small>a person decides</small></div>
+    </div>
+    <div class="cl-arch-below">
+      <div class="cl-arrow cl-arrow-down">⇅<small>classifies what the Repository stores</small></div>
+      <div class="cl-node">K9X Enterprise Repository<small>artifacts · standards · governance log · links to code</small></div>
+    </div>
+  </section>
+
+  <section class="cl-section cl-alt">
+    <div class="cl-label">Built on K9-AIF</div>
+    <h2>Part of the K9X ecosystem</h2>
+    <div class="cl-eco">
+      <a class="cl-eco-card" href="https://repo.k9x.ai" target="_blank" rel="noopener"><h3>Enterprise Repository ↗</h3><p>The record: what the enterprise has, from day one.</p></a>
+      <a class="cl-eco-card" href="https://hil.k9x.ai" target="_blank" rel="noopener"><h3>K9X HIL ↗</h3><p>Reviews and Architecture Board decisions, made by a person.</p></a>
+      <a class="cl-eco-card" href="https://studio.k9x.ai" target="_blank" rel="noopener"><h3>K9X Studio ↗</h3><p>Designs solutions from the same building blocks.</p></a>
+      <a class="cl-eco-card" href="https://inspector.k9x.ai" target="_blank" rel="noopener"><h3>K9X Inspector ↗</h3><p>The conformance rules behind the publish gate.</p></a>
+    </div>
+  </section>
+
+  <section class="cl-section" id="cl-scope">
+    <div class="cl-label">Scope</div>
+    <h2>What this is, and what it is not (yet)</h2>
+    <ul class="cl-scope">
+      <li><b>Public demonstration.</b> Sample data and a shared demo account; do not enter real information.</li>
+      <li><b>Optional until there is something to reuse.</b> Start with the Repository; add the Continuum when the first reusable building blocks appear, run by an AI Center of Excellence.</li>
+      <li><b>Search is PostgreSQL full-text.</b> No lineage graph yet.</li>
+      <li><b>Accounts.</b> New registrations wait for an admin; approving, promoting and harvesting need the admin role.</li>
+    </ul>
+  </section>
+
+  <footer class="cl-footer">K9X Enterprise Continuum · built on <a href="https://k9x.ai" target="_blank" rel="noopener">K9-AIF</a> · open source, Apache 2.0 · questions: <a href="https://forum.k9x.ai" target="_blank" rel="noopener">forum.k9x.ai</a></footer>
+</div>
 
 <div class="layout">
 
@@ -208,6 +303,7 @@
             <div class="ucd-item ucd-logout" onclick="logout()">Sign out</div>
           </div>
         </div>
+        <button class="icon-btn" title="About the Continuum" onclick="showLanding()">⌂</button>
         <button id="help-btn" class="icon-btn" title="Help">?</button>
         <button id="theme-btn" class="theme-toggle" title="Toggle theme">🌙</button>
       </div>

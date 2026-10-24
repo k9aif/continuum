@@ -738,3 +738,66 @@ body.dark .login-error { background: #450a0a; }
 .ec-foundation-icon { font-size: 20px; margin-bottom: 6px; color: var(--accent); }
 .ec-foundation-text { font-size: 12px; font-weight: 600; color: var(--accent); line-height: 1.4; }
 .ec-foundation-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── Public landing page (K9X landing standard; violet, distinct from the Repository's indigo) ── */
+.cl-landing { --cl: #7c3aed; --cl-deep: #5b21b6; --cl-soft: #f5f3ff; --cl-ink: #1e1b4b; --cl-mute: #5b5f7a;
+  --cl-card: #ffffff; --cl-bg: #fbfaff; --cl-line: #e9e5fb; background: var(--cl-bg); color: var(--cl-ink); min-height: 100vh; }
+body.dark .cl-landing { --cl: #a78bfa; --cl-deep: #c4b5fd; --cl-soft: #1e1838; --cl-ink: #ede9fe; --cl-mute: #a5a3c2;
+  --cl-card: #17132b; --cl-bg: #0f0c1f; --cl-line: #2e2752; }
+body.on-landing .layout, body.on-landing .toast { display: none; }
+.cl-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 24px; padding: 14px 32px;
+  background: color-mix(in srgb, var(--cl-bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--cl-line); }
+.cl-brand { font-weight: 700; font-size: 15px; } .cl-brand a { color: var(--cl); text-decoration: none; font-weight: 800; }
+.cl-nav { display: flex; gap: 20px; flex: 1; } .cl-nav a { color: var(--cl-mute); text-decoration: none; font-size: 14px; }
+.cl-nav a:hover { color: var(--cl); }
+.cl-top-actions { display: flex; gap: 10px; }
+.cl-btn { border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--cl); }
+.cl-btn-primary { background: var(--cl); color: #fff; } body.dark .cl-btn-primary { color: #0f0c1f; }
+.cl-btn-primary:hover { background: var(--cl-deep); border-color: var(--cl-deep); }
+.cl-btn-ghost { background: transparent; color: var(--cl); } .cl-btn-ghost:hover { background: var(--cl-soft); }
+.cl-btn-lg { padding: 12px 22px; font-size: 15px; }
+.cl-hero { text-align: center; padding: 72px 24px 56px; max-width: 920px; margin: 0 auto; }
+.cl-eyebrow { font: 700 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; color: var(--cl); margin-bottom: 18px; }
+.cl-hero h1 { font-size: 46px; line-height: 1.1; letter-spacing: -1px; margin-bottom: 18px; }
+.cl-hero h1 span { color: var(--cl); }
+.cl-lede { font-size: 17px; line-height: 1.65; color: var(--cl-mute); max-width: 720px; margin: 0 auto 28px; }
+.cl-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.cl-demo { margin-top: 18px; font-size: 13px; color: var(--cl-mute); }
+.cl-demo code, .cl-landing p code { background: var(--cl-soft); color: var(--cl-deep); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.cl-demo-error { margin-top: 10px; color: #dc2626; font-size: 13px; }
+.cl-section { max-width: 1120px; margin: 0 auto; padding: 56px 24px; }
+.cl-alt { max-width: none; background: var(--cl-soft); border-top: 1px solid var(--cl-line); border-bottom: 1px solid var(--cl-line); }
+.cl-alt > * { max-width: 1072px; margin-left: auto; margin-right: auto; }
+.cl-label { text-align: center; font: 700 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--cl); margin-bottom: 10px; }
+.cl-section h2 { text-align: center; font-size: 26px; margin-bottom: 32px; letter-spacing: -.3px; }
+.cl-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.cl-card { background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 14px; padding: 22px; }
+.cl-ico { width: 38px; height: 38px; border-radius: 10px; background: var(--cl-soft); color: var(--cl); display: grid; place-items: center; font-size: 18px; margin-bottom: 12px; }
+.cl-card h3, .cl-step h3, .cl-eco-card h3 { font-size: 16px; margin-bottom: 6px; }
+.cl-card p, .cl-step p, .cl-eco-card p { font-size: 14px; line-height: 1.55; color: var(--cl-mute); }
+.cl-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.cl-step { background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 14px; padding: 20px; }
+.cl-step b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--cl); color: #fff; font-size: 14px; margin-bottom: 10px; }
+body.dark .cl-step b { color: #0f0c1f; }
+.cl-arch { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.cl-arch-below { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
+.cl-node { background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 12px; padding: 16px 20px; text-align: center; font-weight: 700; min-width: 190px; }
+.cl-node small, .cl-arrow small { display: block; font-weight: 400; font-size: 12px; color: var(--cl-mute); margin-top: 4px; }
+.cl-node-main { border: 2px solid var(--cl); background: var(--cl-soft); color: var(--cl-deep); min-width: 260px; }
+.cl-arrow { color: var(--cl); font-size: 24px; text-align: center; min-width: 110px; }
+.cl-eco { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.cl-eco-card { background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 14px; padding: 20px; text-decoration: none; color: inherit; }
+.cl-eco-card:hover { border-color: var(--cl); }
+.cl-eco-card h3 { color: var(--cl-deep); }
+.cl-scope { max-width: 760px; margin: 0 auto; padding-left: 20px; line-height: 1.7; font-size: 15px; color: var(--cl-mute); }
+.cl-scope b { color: var(--cl-ink); }
+.cl-footer { text-align: center; padding: 28px; font-size: 13px; color: var(--cl-mute); border-top: 1px solid var(--cl-line); }
+.cl-footer a { color: var(--cl); }
+@media (max-width: 900px) {
+  .cl-cards, .cl-eco { grid-template-columns: 1fr 1fr; } .cl-steps { grid-template-columns: 1fr 1fr; }
+  .cl-nav { display: none; } .cl-hero h1 { font-size: 34px; }
+}
+@media (max-width: 560px) { .cl-cards, .cl-eco, .cl-steps { grid-template-columns: 1fr; } .cl-top { padding: 12px 16px; } }
+.cl-section { scroll-margin-top: 70px; }
+.cl-btn { white-space: nowrap; }
+@media (max-width: 560px) { .cl-top-actions .cl-btn-ghost { display: none; } .cl-brand { font-size: 14px; } }

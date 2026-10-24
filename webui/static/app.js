@@ -1440,6 +1440,46 @@ function logout() {
   switchTab("continuum");
 }
 
+// ── Public landing page ────────────────────────────────────────────────────
+// Shown to visitors who are not signed in (K9X landing standard). Entering the catalog is remembered for the
+// browser session only, so a returning visitor sees the landing page again; the ⌂ button reopens it.
+const ENTERED_KEY = "k9x-continuum-entered";
+
+function showLanding() {
+  document.getElementById("landing").style.display = "";
+  document.body.classList.add("on-landing");
+  window.scrollTo(0, 0);
+}
+
+function hideLanding() {
+  document.getElementById("landing").style.display = "none";
+  document.body.classList.remove("on-landing");
+  try { sessionStorage.setItem(ENTERED_KEY, "1"); } catch (_) { /* private mode: fine */ }
+}
+
+function enterCatalog() { hideLanding(); }
+
+function landingSignIn() {
+  hideLanding();
+  document.getElementById("login-form").reset();          // restores the demo / demo defaults
+  document.getElementById("login-error").style.display = "none";
+  openModal("login-modal");
+}
+
+async function tryDemo() {
+  const err = document.getElementById("cl-demo-error");
+  err.style.display = "none";
+  document.getElementById("login-email").value = "demo";
+  document.getElementById("login-password").value = "demo";
+  await submitLogin({ preventDefault() {} });
+  if (currentUser) {
+    hideLanding();
+  } else {
+    err.textContent = document.getElementById("login-error").textContent || "Demo sign-in failed";
+    err.style.display = "";
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   initTheme();
@@ -1451,6 +1491,9 @@ async function init() {
     authToken = currentUser.token;
     isAdminMode = currentUser.role === "admin";
   }
+  let entered = false;
+  try { entered = sessionStorage.getItem(ENTERED_KEY) === "1"; } catch (_) { /* treat as not entered */ }
+  if (!currentUser && !entered) showLanding();
   document.getElementById("login-form").onsubmit    = submitLogin;
   document.getElementById("register-form").onsubmit = submitRegister;
   document.getElementById("login-btn")?.addEventListener("click",    () => { document.getElementById("login-form").reset(); document.getElementById("login-error").style.display="none"; openModal("login-modal"); });

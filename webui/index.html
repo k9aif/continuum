@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>k9x Enterprise Continuum</title>
-  <link rel="stylesheet" href="/static/app.css?v=21" />
-  <script src="/static/app.js?v=21" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=22" />
+  <script src="/static/app.js?v=22" defer></script>
 </head>
 <body>
 <script>/* dark before first paint, so the page never flashes white (initTheme in app.js keeps it in step) */
@@ -255,7 +255,7 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
     <!-- Header -->
     <header class="header">
       <div class="header-brand">
-        <a class="header-logo" href="https://k9x.ai" target="_blank" rel="noopener" style="text-decoration:none">k9x</a>
+        <a class="header-logo" href="/" title="Continuum home" onclick="event.preventDefault(); showLanding()" style="text-decoration:none">k9x</a>
         <div class="header-sub">Enterprise Continuum</div>
       </div>
 
@@ -306,7 +306,7 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
             <div class="ucd-item ucd-logout" onclick="logout()">Sign out</div>
           </div>
         </div>
-        <button class="icon-btn" title="About the Continuum" onclick="showLanding()">⌂</button>
+        <button class="icon-btn" title="Continuum home" onclick="showLanding()">⌂</button>
         <button id="help-btn" class="icon-btn" title="Help">?</button>
         <button id="theme-btn" class="theme-toggle" title="Toggle theme">🌙</button>
       </div>

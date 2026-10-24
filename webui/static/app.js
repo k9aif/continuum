@@ -1447,21 +1447,30 @@ function logout() {
 }
 
 // ── Public landing page ────────────────────────────────────────────────────
-// Shown to visitors who are not signed in (K9X landing standard). Entering the catalog is remembered for the
-// browser session only, so a returning visitor sees the landing page again; the ⌂ button reopens it.
-const ENTERED_KEY = "k9x-continuum-entered";
+// K9X landing standard: "/" is the landing page, "/app" is the catalog. The server returns index.html for both;
+// the address decides which one shows, so /app can be bookmarked and Back/Forward move between them.
+const APP_PATH = "/app";
+
+function onAppPath() { return location.pathname.startsWith(APP_PATH); }
+
+function renderRoute() {
+  const landing = !onAppPath();
+  document.getElementById("landing").style.display = landing ? "" : "none";
+  document.body.classList.toggle("on-landing", landing);
+  if (landing) window.scrollTo(0, 0);
+}
 
 function showLanding() {
-  document.getElementById("landing").style.display = "";
-  document.body.classList.add("on-landing");
-  window.scrollTo(0, 0);
+  if (onAppPath()) history.pushState({}, "", "/");
+  renderRoute();
 }
 
 function hideLanding() {
-  document.getElementById("landing").style.display = "none";
-  document.body.classList.remove("on-landing");
-  try { sessionStorage.setItem(ENTERED_KEY, "1"); } catch (_) { /* private mode: fine */ }
+  if (!onAppPath()) history.pushState({}, "", APP_PATH);
+  renderRoute();
 }
+
+window.addEventListener("popstate", renderRoute);
 
 function enterCatalog() { hideLanding(); }
 
@@ -1497,9 +1506,7 @@ async function init() {
     authToken = currentUser.token;
     isAdminMode = currentUser.role === "admin";
   }
-  let entered = false;
-  try { entered = sessionStorage.getItem(ENTERED_KEY) === "1"; } catch (_) { /* treat as not entered */ }
-  if (!currentUser && !entered) showLanding();
+  renderRoute();
   document.getElementById("login-form").onsubmit    = submitLogin;
   document.getElementById("register-form").onsubmit = submitRegister;
   document.getElementById("login-btn")?.addEventListener("click",    () => { document.getElementById("login-form").reset(); document.getElementById("login-error").style.display="none"; openModal("login-modal"); });

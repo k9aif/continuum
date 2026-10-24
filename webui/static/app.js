@@ -30,8 +30,11 @@ function toggleTheme() {
   updateThemeIcon();
 }
 function updateThemeIcon() {
-  const btn = document.getElementById("theme-btn");
-  if (btn) btn.textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+  const icon = document.body.classList.contains("dark") ? "☀️" : "🌙";
+  for (const id of ["theme-btn", "cl-theme-btn"]) {           // the app header and the landing page
+    const btn = document.getElementById(id);
+    if (btn) btn.textContent = icon;
+  }
 }
 
 // ── Fetch helpers ──────────────────────────────────────────────────────────

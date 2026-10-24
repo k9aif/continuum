@@ -801,3 +801,5 @@ body.dark .cl-step b { color: #0f0c1f; }
 .cl-section { scroll-margin-top: 70px; }
 .cl-btn { white-space: nowrap; }
 @media (max-width: 560px) { .cl-top-actions .cl-btn-ghost { display: none; } .cl-brand { font-size: 14px; } }
+.cl-theme { background: transparent; border: 1px solid var(--cl-line); border-radius: 8px; width: 38px; cursor: pointer; font-size: 16px; }
+.cl-theme:hover { border-color: var(--cl); }

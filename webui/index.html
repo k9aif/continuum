@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>k9x Enterprise Continuum</title>
-  <link rel="stylesheet" href="/static/app.css?v=20" />
-  <script src="/static/app.js?v=20" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=21" />
+  <script src="/static/app.js?v=21" defer></script>
 </head>
 <body>
 <script>/* dark before first paint, so the page never flashes white (initTheme in app.js keeps it in step) */
@@ -22,6 +22,7 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
     <div class="cl-top-actions">
       <button class="cl-btn cl-btn-ghost" onclick="enterCatalog()">Explore</button>
       <button class="cl-btn cl-btn-primary" onclick="landingSignIn()">Sign in</button>
+      <button id="cl-theme-btn" class="cl-theme" title="Toggle theme" onclick="toggleTheme()">☀️</button>
     </div>
   </header>
 

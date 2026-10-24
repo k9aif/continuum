@@ -167,6 +167,13 @@ def seed_examples():
                 role="admin",
                 password_hash=_admin_password_hash(),
             ))
+        elif os.environ.get("CONTINUUM_ADMIN_PASSWORD"):
+            # CONTINUUM_ADMIN_PASSWORD in the server's .env is the admin password: set it there to reset a lost or
+            # randomized one (a changed password in the UI is overwritten on the next start while it is set)
+            wanted = _admin_password_hash()
+            if admin.password_hash != wanted:
+                admin.password_hash = wanted
+                log.warning("admin: password set from CONTINUUM_ADMIN_PASSWORD")
         elif admin.password_hash == _RETIRED_ADMIN_HASH:
             # the password published earlier no longer works
             admin.password_hash = _admin_password_hash()

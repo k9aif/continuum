@@ -18,12 +18,15 @@ let activeUserFilter = { role: "", search: "" };
 // ── Theme ──────────────────────────────────────────────────────────────────
 const DARK_KEY = "k9repo_dark";
 function initTheme() {
-  if (localStorage.getItem(DARK_KEY) === "1") document.body.classList.add("dark");
+  // dark by default, like the other K9X sites; a visitor's own choice ("0" = light) is kept
+  let saved = null;
+  try { saved = localStorage.getItem(DARK_KEY); } catch (_) { /* private mode: default */ }
+  document.body.classList.toggle("dark", saved !== "0");
   updateThemeIcon();
 }
 function toggleTheme() {
   const dark = document.body.classList.toggle("dark");
-  localStorage.setItem(DARK_KEY, dark ? "1" : "0");
+  try { localStorage.setItem(DARK_KEY, dark ? "1" : "0"); } catch (_) { /* private mode */ }
   updateThemeIcon();
 }
 function updateThemeIcon() {

@@ -7,6 +7,10 @@ LABEL org.opencontainers.image.title="k9x_continuum" \
 
 WORKDIR /app
 
+# git: server-side verification fetches the submitted commit (Continuum 1.2.0)
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

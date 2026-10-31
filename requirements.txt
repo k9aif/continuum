@@ -7,3 +7,4 @@ python-dotenv>=1.0
 python-multipart>=0.0.9
 pyjwt>=2.8
 kafka-python>=2.3.0
+k9-aif>=1.21.0     # k9_inspect: server-side verification of submissions (1.2.0)

@@ -13,8 +13,15 @@ built on the [K9-AIF framework](https://github.com/k9aif/k9-aif-framework).
 - **Catalogs** ABBs (framework-level contracts) and SBBs (concrete
   implementations) across the Foundation → Common Systems → Industry →
   Organization-Specific continuum levels.
-- **Gates publishing** on `k9aif inspect` passing — an SBB that doesn't
-  conform to its declared ABB contract cannot enter the catalog.
+- **Gates publishing** on `k9aif inspect` passing, and checks it (1.2.0): the
+  Continuum re-runs the K9-AIF inspection rules on the submitted commit
+  (`git_ref`, optional `git_commit`). Critical findings or violations refuse
+  the submission; warnings, or a source it cannot fetch (private repository,
+  other host), send it to review flagged, and approving it then needs a written
+  justification, recorded in the audit log. Settings: `CONTINUUM_VERIFY`
+  (default on), `CONTINUUM_VERIFY_HOSTS` (default github.com, gitlab.com,
+  bitbucket.org), `CONTINUUM_VERIFY_TIMEOUT` (120 s). Inspection is static
+  (AST and YAML); submitted code is never run.
 - **Governs promotion** through a review workflow: submit → pending review →
   published → promoted, with every transition logged to an audit trail.
 - **Tracks applications** built on K9-AIF, independent of the SBB/ABB catalog
@@ -87,7 +94,7 @@ POST /api/v1/auth/register           — self-register (pending admin approval)
 
 GET  /api/v1/abbs                    — list ABBs
 GET  /api/v1/sbbs                    — search/list SBBs
-POST /api/v1/sbbs                    — publish an SBB (requires inspect_passed)
+POST /api/v1/sbbs                    — publish an SBB (requires inspect_passed; re-verified server-side)
 PATCH /api/v1/sbbs/{id}/approve      — approve a pending SBB (admin)
 PATCH /api/v1/sbbs/{id}/promote      — promote a published SBB (admin)
 

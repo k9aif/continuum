@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ARRAY, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ARRAY, ForeignKey, Table, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from pydantic import BaseModel, EmailStr
@@ -108,6 +108,10 @@ class SBB(Base):
     inspect_passed  = Column(Boolean, default=False)
     yaml_snapshot   = Column(Text)
     git_ref         = Column(String(500))
+    git_commit      = Column(String(64))         # commit the architect submitted (1.2.0)
+    verification_status = Column(String(20))     # compliant | warnings | non_compliant | unverifiable
+    verification_report = Column(JSON)           # counts, findings, verified commit, reason
+    verified_commit = Column(String(64))
     published_by    = Column(String(255))
     tech_lead       = Column(String(255))
     published_at    = Column(DateTime)
@@ -250,6 +254,7 @@ class SBBCreate(BaseModel):
     tech_lead: Optional[str] = None
     project: Optional[str] = None
     git_ref: Optional[str] = None       # source code URL — git, bitbucket, ADO, etc.
+    git_commit: Optional[str] = None    # commit to verify (1.2.0); default the ref's head
 
 
 class SBBOut(BaseModel):
@@ -266,6 +271,8 @@ class SBBOut(BaseModel):
     published_by: Optional[str]
     tech_lead: Optional[str]
     git_ref: Optional[str]
+    verification_status: Optional[str] = None
+    verified_commit: Optional[str] = None
     published_at: Optional[datetime]
     promoted_by: Optional[str]
     promoted_at: Optional[datetime]

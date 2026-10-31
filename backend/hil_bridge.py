@@ -71,18 +71,27 @@ def build_task(kind: str, correlation_id: str, title: str, description: str,
 
 
 def review_task(sbb) -> Dict[str, Any]:
+    from backend import verification
     abbs = ", ".join(sbb.abb_names or []) or "none declared"
-    return build_task(
+    v = sbb.verification_report or None
+    needs = verification.needs_justification(sbb.verification_status)
+    task = build_task(
         "sbb-review", f"SBB-{sbb.id}-review",
         f"SBB-{sbb.id} · Review SBB {sbb.name}",
         f"{sbb.name} ({sbb.kind or 'SBB'}, v{sbb.version}) was submitted to the K9X Continuum by "
         f"{sbb.published_by or 'an unnamed submitter'} for project {sbb.project or '—'}. It declares the "
-        f"ABB contracts {abbs} and a passing k9aif inspection. Approve to publish it in the catalog; "
-        f"reject to return it.",
+        f"ABB contracts {abbs} and a passing k9aif inspection. Server-side inspection: "
+        f"{verification.summary(v)}. Approve to publish it in the catalog"
+        + ("; approving needs a written justification in the comment" if needs else "")
+        + "; reject to return it.",
         {"sbb_id": sbb.id, "name": sbb.name, "kind": sbb.kind, "version": sbb.version,
          "abb_contracts": list(sbb.abb_names or []), "domain": sbb.domain, "project": sbb.project,
          "submitted_by": sbb.published_by, "tech_lead": sbb.tech_lead, "git_ref": sbb.git_ref,
-         "inspect_passed": bool(sbb.inspect_passed), "description_text": sbb.description})
+         "inspect_passed": bool(sbb.inspect_passed), "description_text": sbb.description,
+         "verification": v})
+    # K9X HIL 1.4.0 refuses an approval without a comment when the task asks for one.
+    task["require_comment"] = needs
+    return task
 
 
 def harvest_task(nom, sbb) -> Dict[str, Any]:
@@ -130,6 +139,17 @@ def apply_decision(db, reply: Dict[str, Any]) -> Optional[str]:
         sbb = db.query(SBB).filter(SBB.id == int(parts[1])).first()
         if not sbb or sbb.status != "pending_review":
             return None
+        from backend import verification
+        if approved and verification.needs_justification(sbb.verification_status) \
+                and not str(comment or "").strip():
+            # Second guard (an older K9X HIL may not enforce require_comment): keep it in review.
+            db.add(AuditLog(entity="sbb", entity_id=sbb.id, action="approval_refused", actor=actor,
+                            project=sbb.project, note="approval without the required justification "
+                                                     f"({verification.summary(sbb.verification_report)})"))
+            db.commit()
+            return f"SBB {sbb.id} approval refused: no justification"
+        if approved and verification.needs_justification(sbb.verification_status):
+            note = f"decided in K9X HIL; justification: {comment}"
         sbb.status = "published" if approved else "rejected"
         db.add(AuditLog(entity="sbb", entity_id=sbb.id, action="approved" if approved else "rejected",
                         actor=actor, project=sbb.project, note=note))

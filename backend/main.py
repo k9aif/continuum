@@ -49,6 +49,10 @@ def _migrate():
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_by  VARCHAR(255)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_at  TIMESTAMP",
             f"ALTER TABLE {SCHEMA}.abbs        ADD COLUMN IF NOT EXISTS harvested_from INTEGER",
+            f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS git_commit   VARCHAR(64)",
+            f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20)",
+            f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS verification_report JSON",
+            f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS verified_commit VARCHAR(64)",
         ]
         for sql in migrations:
             conn.execute(__import__("sqlalchemy").text(sql))

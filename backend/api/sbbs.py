@@ -7,7 +7,7 @@ from typing import List, Optional
 from backend.database import get_db
 from backend.models import (SBB, SBBCreate, SBBOut, SBBReviewOut, AuditLog, User, AbbNomination,
                             NominationCreate, NominationOut)
-from backend import hil_bridge
+from backend import hil_bridge, verification
 from backend.auth_deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/v1/sbbs", tags=["SBBs"])
@@ -123,12 +123,21 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Dep
         raise HTTPException(status_code=422, detail="k9aif inspect must pass before submitting")
     user = _validate_sbb(payload, db)
     _check_rate_limit(db, payload.published_by)
+    # 1.2.0: the declaration is checked, not trusted. Re-run the rules on the submitted commit.
+    v = verification.verify(payload.git_ref, payload.git_commit)
+    if v["status"] == verification.NON_COMPLIANT:
+        raise HTTPException(status_code=422, detail={
+            "message": "inspection declared as passed, but re-running it on the submitted source found "
+                       "critical findings or violations",
+            "verification": v})
     sbb = SBB(**payload.model_dump(), status="pending_review",
-               published_at=datetime.now(timezone.utc))
+               published_at=datetime.now(timezone.utc),
+               verification_status=v["status"], verification_report=v, verified_commit=v.get("commit"))
     db.add(sbb)
     db.flush()
     manager = user.manager if user else None
-    note = "inspect_passed=True" + (f" | manager={manager}" if manager else "")
+    note = ("inspect_passed=True (declared) | " + verification.summary(v)
+            + (f" | manager={manager}" if manager else ""))
     _log(db, sbb.id, "submitted", actor=payload.published_by, project=payload.project, note=note)
     db.commit()
     db.refresh(sbb)
@@ -141,15 +150,19 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Dep
 
 
 @router.patch("/{sbb_id}/approve", response_model=SBBOut)
-def approve_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
-                 _: User = Depends(require_admin)):
+def approve_sbb(sbb_id: int, actor: Optional[str] = None, justification: Optional[str] = None,
+                 db: Session = Depends(get_db), _: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(404, "SBB not found")
     if sbb.status != "pending_review":
         raise HTTPException(422, "Only pending_review SBBs can be approved")
+    if verification.needs_justification(sbb.verification_status) and not (justification or "").strip():
+        raise HTTPException(422, "This SBB has inspection findings or could not be verified: "
+                                 "approving it needs a written justification")
     sbb.status = "published"
-    _log(db, sbb.id, "approved", actor=actor, project=sbb.project)
+    _log(db, sbb.id, "approved", actor=actor, project=sbb.project,
+         note=f"justification: {justification.strip()}" if (justification or "").strip() else None)
     db.commit()
     db.refresh(sbb)
     return sbb

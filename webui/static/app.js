@@ -42,7 +42,9 @@ function authHeaders(extra = {}) {
   return authToken ? { ...extra, "Authorization": "Bearer " + authToken } : extra;
 }
 function handleAuthError(r) {
-  if (r.status === 401) { logout(); throw new Error("Session expired"); }
+  // A 401 means an expired session only when we sent a token; a sign-in attempt (no token) gets the
+  // server's own reason ("Invalid email or password") from the caller instead.
+  if (r.status === 401 && authToken) { logout(); throw new Error("Session expired: please sign in again"); }
 }
 async function fetchJSON(url) {
   const r = await fetch(url, { headers: authHeaders() });

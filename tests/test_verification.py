@@ -14,6 +14,8 @@ from backend import hil_bridge, verification
 from backend.api import sbbs
 from backend.models import AuditLog, SBB, SBBCreate
 
+_ADMIN = types.SimpleNamespace(email="admin@k9x.ai", role="admin")
+
 
 def _write(root, rel, text):
     p = root / rel
@@ -124,7 +126,7 @@ def _submit(monkeypatch, v):
     db = _DB()
     payload = SBBCreate(name="ClaimsTriageAgent", kind="Agent", inspect_passed=True,
                         published_by="dev@k9x.ai", git_ref="https://github.com/o/r")
-    return sbbs.publish_sbb(payload, db=db, _=None), db
+    return sbbs.publish_sbb(payload, db=db, submitter=None), db
 
 
 def test_a_declared_pass_contradicted_by_the_server_is_refused(monkeypatch):
@@ -192,9 +194,9 @@ def test_a_compliant_sbb_needs_no_justification():
 def test_admin_approval_needs_a_justification_too():
     s = _sbb("warnings")
     with pytest.raises(HTTPException) as e:
-        sbbs.approve_sbb(7, actor="admin", justification=None, db=_FakeDB(s), _=None)
+        sbbs.approve_sbb(7, justification=None, db=_FakeDB(s), admin=_ADMIN)
     assert e.value.status_code == 422 and s.status == "pending_review"
-    sbbs.approve_sbb(7, actor="admin", justification="two warnings, both in test fixtures", db=_DBWith(s), _=None)
+    sbbs.approve_sbb(7, justification="two warnings, both in test fixtures", db=_DBWith(s), admin=_ADMIN)
     assert s.status == "published"
 
 
@@ -229,3 +231,13 @@ def test_startup_refuses_without_the_inspection_rules(monkeypatch):
 
 def test_startup_passes_with_git_and_rules():
     assert verification.require_ready()
+
+
+def test_the_audit_log_records_the_signed_in_admin_not_a_client_supplied_name():
+    s = _sbb("compliant"); db = _DBWith(s)
+    sbbs.approve_sbb(7, justification=None, db=db, admin=_ADMIN)
+    s.status = "published"
+    sbbs.promote_sbb(7, db=db, admin=_ADMIN)
+    actors = {(a.action, a.actor) for a in db.added if isinstance(a, AuditLog)}
+    assert actors == {("approved", "admin@k9x.ai"), ("promoted", "admin@k9x.ai")}
+    assert s.promoted_by == "admin@k9x.ai"

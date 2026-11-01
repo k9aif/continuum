@@ -23,30 +23,29 @@ def app_review_queue(db: Session = Depends(get_db), _: User = Depends(get_curren
 
 
 @router.patch("/{app_id}/approve", response_model=ApplicationOut)
-def approve_app(app_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
-                 _: User = Depends(require_admin)):
+def approve_app(app_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(404, "Application not found")
     if app.status != "pending_review":
         raise HTTPException(422, "Only pending_review applications can be approved")
     app.status = "poc"
-    _log(db, app.id, "approved", actor=actor)
+    _log(db, app.id, "approved", actor=admin.email)
     db.commit()
     db.refresh(app)
     return app
 
 
 @router.patch("/{app_id}/reject", response_model=ApplicationOut)
-def reject_app(app_id: int, actor: Optional[str] = None, reason: Optional[str] = None,
-               db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def reject_app(app_id: int, reason: Optional[str] = None,
+               db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(404, "Application not found")
     if app.status != "pending_review":
         raise HTTPException(422, "Only pending_review applications can be rejected")
     app.status = "rejected"
-    _log(db, app.id, "rejected", actor=actor, note=reason)
+    _log(db, app.id, "rejected", actor=admin.email, note=reason)
     db.commit()
     db.refresh(app)
     return app
@@ -84,13 +83,13 @@ def get_app(app_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ApplicationOut, status_code=201)
 def register_app(payload: ApplicationCreate, db: Session = Depends(get_db),
-                  _: User = Depends(get_current_user)):
+                  user: User = Depends(get_current_user)):
     data = payload.model_dump()
     data["status"] = "pending_review"
     app = Application(**data)
     db.add(app)
     db.flush()
-    _log(db, app.id, "submitted", actor=payload.contact)
+    _log(db, app.id, "submitted", actor=user.email if user else payload.contact)
     db.commit()
     db.refresh(app)
     return app
@@ -111,10 +110,10 @@ def update_app(app_id: int, payload: ApplicationCreate, db: Session = Depends(ge
 
 
 @router.delete("/{app_id}", status_code=204)
-def delete_app(app_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_app(app_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    _log(db, app.id, "deleted", note=app.name)
+    _log(db, app.id, "deleted", actor=admin.email, note=app.name)
     db.delete(app)
     db.commit()

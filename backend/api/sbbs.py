@@ -118,11 +118,14 @@ def get_sbb(sbb_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=SBBOut, status_code=201)
-def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), submitter: User = Depends(get_current_user)):
     if not payload.inspect_passed:
         raise HTTPException(status_code=422, detail="k9aif inspect must pass before submitting")
     user = _validate_sbb(payload, db)
-    _check_rate_limit(db, payload.published_by)
+    # The audit actor is the signed-in submitter, never a name the client sends; published_by
+    # is the author the SBB is submitted for (e.g. the PM), also a registered user.
+    actor = submitter.email if submitter else payload.published_by
+    _check_rate_limit(db, actor)
     # 1.2.0: the declaration is checked, not trusted. Re-run the rules on the submitted commit.
     v = verification.verify(payload.git_ref, payload.git_commit)
     if v["status"] == verification.NON_COMPLIANT:
@@ -137,8 +140,9 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Dep
     db.flush()
     manager = user.manager if user else None
     note = ("inspect_passed=True (declared) | " + verification.summary(v)
+            + (f" | author={payload.published_by}" if payload.published_by and payload.published_by != actor else "")
             + (f" | manager={manager}" if manager else ""))
-    _log(db, sbb.id, "submitted", actor=payload.published_by, project=payload.project, note=note)
+    _log(db, sbb.id, "submitted", actor=actor, project=payload.project, note=note)
     db.commit()
     db.refresh(sbb)
     # Review routing: the reviewer decides in K9X HIL; the decision comes back over Kafka.
@@ -150,8 +154,8 @@ def publish_sbb(payload: SBBCreate, db: Session = Depends(get_db), _: User = Dep
 
 
 @router.patch("/{sbb_id}/approve", response_model=SBBOut)
-def approve_sbb(sbb_id: int, actor: Optional[str] = None, justification: Optional[str] = None,
-                 db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def approve_sbb(sbb_id: int, justification: Optional[str] = None,
+                 db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(404, "SBB not found")
@@ -161,7 +165,7 @@ def approve_sbb(sbb_id: int, actor: Optional[str] = None, justification: Optiona
         raise HTTPException(422, "This SBB has inspection findings or could not be verified: "
                                  "approving it needs a written justification")
     sbb.status = "published"
-    _log(db, sbb.id, "approved", actor=actor, project=sbb.project,
+    _log(db, sbb.id, "approved", actor=admin.email, project=sbb.project,
          note=f"justification: {justification.strip()}" if (justification or "").strip() else None)
     db.commit()
     db.refresh(sbb)
@@ -169,30 +173,29 @@ def approve_sbb(sbb_id: int, actor: Optional[str] = None, justification: Optiona
 
 
 @router.patch("/{sbb_id}/reject", response_model=SBBOut)
-def reject_sbb(sbb_id: int, actor: Optional[str] = None, reason: Optional[str] = None,
-               db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def reject_sbb(sbb_id: int, reason: Optional[str] = None,
+               db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(404, "SBB not found")
     if sbb.status != "pending_review":
         raise HTTPException(422, "Only pending_review SBBs can be rejected")
     sbb.status = "rejected"
-    _log(db, sbb.id, "rejected", actor=actor, project=sbb.project, note=reason)
+    _log(db, sbb.id, "rejected", actor=admin.email, project=sbb.project, note=reason)
     db.commit()
     db.refresh(sbb)
     return sbb
 
 
 @router.patch("/{sbb_id}/promote", response_model=SBBOut)
-def promote_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
-                 _: User = Depends(require_admin)):
+def promote_sbb(sbb_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")
     if sbb.status != "published":
         raise HTTPException(status_code=422, detail="Only published SBBs can be promoted")
     sbb.status      = "promoted"
-    sbb.promoted_by = actor or sbb.published_by
+    sbb.promoted_by = admin.email
     sbb.promoted_at = datetime.now(timezone.utc)
     _log(db, sbb.id, "promoted", actor=sbb.promoted_by, project=sbb.project)
     db.commit()
@@ -241,11 +244,10 @@ def sbb_nominations(sbb_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{sbb_id}", status_code=204)
-def delete_sbb(sbb_id: int, actor: Optional[str] = None, db: Session = Depends(get_db),
-                _: User = Depends(require_admin)):
+def delete_sbb(sbb_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     sbb = db.query(SBB).filter(SBB.id == sbb_id).first()
     if not sbb:
         raise HTTPException(status_code=404, detail="SBB not found")
-    _log(db, sbb.id, "deleted", actor=actor, project=sbb.project, note=sbb.name)
+    _log(db, sbb.id, "deleted", actor=admin.email, project=sbb.project, note=sbb.name)
     db.delete(sbb)
     db.commit()

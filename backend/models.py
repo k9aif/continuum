@@ -133,7 +133,8 @@ class Application(Base):
     project        = Column(String(255))
     project_url    = Column(String(500))   # Confluence / wiki / request-access page
     department     = Column(String(255))
-    url            = Column(String(500))
+    url            = Column(String(500))   # live application
+    source_url     = Column(String(500))   # source code (GitHub, Bitbucket, ...)
     team           = Column(String(255))
     contact        = Column(String(255))
     k9aif_version  = Column(String(20))
@@ -295,6 +296,7 @@ class ApplicationCreate(BaseModel):
     project_url: Optional[str] = None
     department: Optional[str] = None
     url: Optional[str] = None
+    source_url: Optional[str] = None
     team: Optional[str] = None
     contact: Optional[str] = None
     k9aif_version: Optional[str] = None
@@ -312,6 +314,7 @@ class ApplicationOut(BaseModel):
     project_url: Optional[str]
     department: Optional[str]
     url: Optional[str]
+    source_url: Optional[str] = None
     team: Optional[str]
     contact: Optional[str]
     k9aif_version: Optional[str]

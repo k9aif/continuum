@@ -654,8 +654,12 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Project URL</label>
-        <input id="a-url" class="form-input" type="url" placeholder="https://intranet/my-app" />
+        <label class="form-label">Live URL <span style="font-weight:400;color:var(--text-muted)">(optional — where the running application is)</span></label>
+        <input id="a-url" class="form-input" type="url" placeholder="https://my-app.example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Source code URL <span style="font-weight:400;color:var(--text-muted)">(optional — GitHub, Bitbucket, ADO; a release tag is best)</span></label>
+        <input id="a-source-url" class="form-input" type="url" placeholder="https://github.com/org/my-app/tree/v1.0.0" />
       </div>
       <div class="form-group">
         <label class="form-label">SBBs Used</label>

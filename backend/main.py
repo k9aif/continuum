@@ -45,6 +45,7 @@ def _migrate():
     with engine.connect() as conn:
         migrations = [
             f"ALTER TABLE {SCHEMA}.applications ADD COLUMN IF NOT EXISTS project_url  VARCHAR(500)",
+            f"ALTER TABLE {SCHEMA}.applications ADD COLUMN IF NOT EXISTS source_url   VARCHAR(500)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS git_ref      VARCHAR(500)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_by  VARCHAR(255)",
             f"ALTER TABLE {SCHEMA}.sbbs        ADD COLUMN IF NOT EXISTS promoted_at  TIMESTAMP",

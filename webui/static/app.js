@@ -520,7 +520,8 @@ function openAppDetail(a) {
       ${row("k9-aif ver",   a.k9aif_version)}
       ${row("Tags",          (a.tags || []).join(", "))}
       ${a.project_url ? `<div class="detail-row"><span class="detail-key">Project Page</span><span class="detail-value"><a href="${a.project_url}" target="_blank" rel="noopener">Open ↗</a></span></div>` : ""}
-      ${a.url ? `<div class="detail-row"><span class="detail-key">App URL</span><span class="detail-value"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      ${a.url ? `<div class="detail-row"><span class="detail-key">Live URL</span><span class="detail-value"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      ${a.source_url ? `<div class="detail-row"><span class="detail-key">Source code</span><span class="detail-value"><a href="${a.source_url}" target="_blank" rel="noopener">${a.source_url}</a></span></div>` : ""}
     </div>
     ${(a.sbbs_used || []).length ? `<div class="detail-section"><h3>SBBs Used</h3>` +
       (a.sbbs_used).map(s => `<div class="detail-row"><span class="detail-key">${s}</span>
@@ -652,6 +653,7 @@ async function submitApp(e) {
     project_url:   document.getElementById("a-project-url").value.trim() || null,
     department:    document.getElementById("a-department").value.trim()   || null,
     url:           document.getElementById("a-url").value.trim()          || null,
+    source_url:    document.getElementById("a-source-url").value.trim()   || null,
     team:          document.getElementById("a-team").value.trim() || null,
     contact:       document.getElementById("a-contact").value.trim() || null,
     k9aif_version: document.getElementById("a-version").value.trim() || null,
@@ -1137,7 +1139,8 @@ function viewAppDetail(a, rowEl) {
       ${detailItem("k9-aif ver", a.k9aif_version || "—")}
       ${detailItem("Submitted",  fmtDate(a.created_at))}
       ${a.project_url ? `<div class="review-detail-item"><span class="review-detail-key">Project Page</span><span class="review-detail-val"><a href="${a.project_url}" target="_blank" rel="noopener">Open ↗</a></span></div>` : ""}
-      ${a.url ? `<div class="review-detail-item"><span class="review-detail-key">App URL</span><span class="review-detail-val"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      ${a.url ? `<div class="review-detail-item"><span class="review-detail-key">Live URL</span><span class="review-detail-val"><a href="${a.url}" target="_blank" rel="noopener">${a.url}</a></span></div>` : ""}
+      ${a.source_url ? `<div class="review-detail-item"><span class="review-detail-key">Source code</span><span class="review-detail-val"><a href="${a.source_url}" target="_blank" rel="noopener">${a.source_url}</a></span></div>` : ""}
     </div>
     ${(a.sbbs_used||[]).length ? `<div class="rdp-sbbs">${a.sbbs_used.map(s => badge("badge-abb", s)).join("")}</div>` : ""}
     <div class="rdp-actions">

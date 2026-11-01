@@ -528,7 +528,8 @@ function openAppDetail(a) {
         <span class="detail-value">${allSBBs.find(sb => sb.name === s) ? badge("badge-inspect","✓ in catalog") : badge("badge-noinspect","not in catalog")}</span>
       </div>`).join("") + `</div>` : ""}
     <div class="detail-actions">
-      ${currentUser?.role === "admin" ? `<button class="btn btn-danger btn-sm" onclick="deleteApp(${a.id})">Remove</button>` : ""}
+      ${currentUser?.role === "admin" ? `<button class="btn btn-primary btn-sm" onclick="openAppEdit(${a.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteApp(${a.id})">Remove</button>` : ""}
       <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')">Close</button>
     </div>`;
   openModal("detail-modal");
@@ -642,7 +643,50 @@ async function deleteSBB(id) {
   } catch(err) { toast(err.message, "error"); }
 }
 
-// ── App register form ──────────────────────────────────────────────────────
+// ── App register / edit form ───────────────────────────────────────────────
+let editingAppId = null;   // set while an admin edits an existing application
+
+function openAppRegister() {
+  editingAppId = null;
+  document.getElementById("app-form").reset();
+  document.getElementById("app-modal-title").textContent = "Register Application";
+  document.getElementById("app-submit-btn").textContent  = "Register";
+  openModal("app-modal");
+}
+
+function setFormValue(id, value) {
+  const el = document.getElementById(id);
+  // A select must offer the stored value (e.g. status pending_review, a team not in the list).
+  if (el.tagName === "SELECT" && value && ![...el.options].some(o => o.value === value)) {
+    el.add(new Option(value, value));
+  }
+  el.value = value ?? "";
+}
+
+function openAppEdit(id) {
+  const a = allApps.find(x => x.id === id);
+  if (!a) return;
+  editingAppId = id;
+  setFormValue("a-name",        a.name);
+  setFormValue("a-status",      a.status);
+  setFormValue("a-desc",        a.description);
+  setFormValue("a-domain",      a.domain);
+  setFormValue("a-version",     a.k9aif_version);
+  setFormValue("a-project",     a.project);
+  setFormValue("a-department",  a.department);
+  setFormValue("a-project-url", a.project_url);
+  setFormValue("a-team",        a.team);
+  setFormValue("a-contact",     a.contact);
+  setFormValue("a-url",         a.url);
+  setFormValue("a-source-url",  a.source_url);
+  setFormValue("a-sbbs",        (a.sbbs_used || []).join(", "));
+  setFormValue("a-tags",        (a.tags || []).join(", "));
+  document.getElementById("app-modal-title").textContent = `Edit Application #${a.id}`;
+  document.getElementById("app-submit-btn").textContent  = "Save";
+  closeModal("detail-modal");
+  openModal("app-modal");
+}
+
 async function submitApp(e) {
   e.preventDefault();
   const payload = {
@@ -662,8 +706,14 @@ async function submitApp(e) {
     sbbs_used:     splitCSV(document.getElementById("a-sbbs").value),
   };
   try {
-    await postJSON(`${API}/api/v1/applications`, payload);
-    toast("Application submitted for review");
+    if (editingAppId) {
+      await patchJSON(`${API}/api/v1/applications/${editingAppId}`, payload);
+      toast("Application updated");
+      editingAppId = null;
+    } else {
+      await postJSON(`${API}/api/v1/applications`, payload);
+      toast("Application submitted for review");
+    }
     closeModal("app-modal");
     await Promise.all([loadApps(), loadAppReviewQueue()]);
   } catch(err) { toast(err.message, "error"); }
@@ -1520,7 +1570,7 @@ async function init() {
   document.getElementById("theme-btn").onclick   = toggleTheme;
   document.getElementById("help-btn").onclick    = () => openModal("help-modal");
   document.getElementById("publish-btn").onclick = openPublishModal;
-  document.getElementById("register-app-btn").onclick = () => { document.getElementById("app-form").reset(); openModal("app-modal"); };
+  document.getElementById("register-app-btn").onclick = openAppRegister;
   document.getElementById("add-user-btn").onclick     = () => { document.getElementById("user-form").reset(); openModal("user-modal"); };
 
   document.getElementById("publish-form").onsubmit = submitPublish;

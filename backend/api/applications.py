@@ -98,13 +98,13 @@ def register_app(payload: ApplicationCreate, db: Session = Depends(get_db),
 
 @router.patch("/{app_id}", response_model=ApplicationOut)
 def update_app(app_id: int, payload: ApplicationCreate, db: Session = Depends(get_db),
-                _: User = Depends(get_current_user)):
+                user: User = Depends(require_admin)):
     app = db.query(Application).filter(Application.id == app_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(app, k, v)
-    _log(db, app.id, "updated", actor=payload.contact)
+    _log(db, app.id, "updated", actor=user.email)
     db.commit()
     db.refresh(app)
     return app

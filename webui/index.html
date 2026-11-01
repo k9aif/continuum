@@ -594,7 +594,7 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
 <!-- ── Register Application Modal ────────────────────────────────────────── -->
 <div id="app-modal" class="modal-overlay">
   <div class="modal">
-    <div class="modal-title">Register Application</div>
+    <div class="modal-title" id="app-modal-title">Register Application</div>
     <form id="app-form">
       <div class="form-row">
         <div class="form-group">
@@ -673,7 +673,7 @@ try { if (localStorage.getItem("k9repo_dark") !== "0") document.body.classList.a
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeModal('app-modal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Register</button>
+        <button type="submit" class="btn btn-primary" id="app-submit-btn">Register</button>
       </div>
     </form>
   </div>

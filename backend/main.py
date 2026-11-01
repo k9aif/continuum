@@ -77,8 +77,23 @@ def health():
     return {"status": "ok", "schema": SCHEMA, "hil_routing": hil_bridge.enabled()}
 
 
+def _versioned_index() -> str:
+    """index.html with each /static/<file>?v=... replaced by a hash of that file's content, so a
+    changed app.js or app.css gets a new URL and no browser or CDN serves the old copy."""
+    import hashlib
+    import re
+    html = _INDEX.read_text(encoding="utf-8")
+
+    def stamp(m):
+        f = _STATIC / m.group(1)
+        v = hashlib.sha256(f.read_bytes()).hexdigest()[:12] if f.exists() else "0"
+        return f"/static/{m.group(1)}?v={v}"
+    return re.sub(r"/static/([\w.-]+)\?v=[\w]+", stamp, html)
+
+
 @app.get("/{full_path:path}")
 def serve_ui(full_path: str):
+    from fastapi.responses import HTMLResponse
     if _INDEX.exists():
-        return FileResponse(str(_INDEX))
+        return HTMLResponse(_versioned_index(), headers={"Cache-Control": "no-cache"})
     return {"error": "webui not found"}

@@ -1540,8 +1540,14 @@ async function init() {
   document.getElementById("filter-role").onchange       = e => { activeUserFilter.role   = e.target.value; renderUserGrid(); };
 
   document.querySelectorAll(".tab-btn").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  // Close a dialog on a click on its backdrop only when the press also started there: a press inside
+  // the form released over the backdrop (selecting text, a small mouse move) must not close it.
   document.querySelectorAll(".modal-overlay").forEach(m => {
-    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); });
+    m.addEventListener("mousedown", e => { m._pressedOnBackdrop = (e.target === m); });
+    m.addEventListener("click", e => {
+      if (e.target === m && m._pressedOnBackdrop) m.classList.remove("open");
+      m._pressedOnBackdrop = false;
+    });
   });
 
   // Nav dropdowns: click-to-toggle (same pattern as user chip — no hover gap)

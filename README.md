@@ -18,9 +18,11 @@ built on the [K9-AIF framework](https://github.com/k9aif/k9-aif-framework).
   (`git_ref`, optional `git_commit`). Critical findings or violations refuse
   the submission; warnings, or a source it cannot fetch (private repository,
   other host), send it to review flagged, and approving it then needs a written
-  justification, recorded in the audit log. Settings: `CONTINUUM_VERIFY`
-  (default on), `CONTINUUM_VERIFY_HOSTS` (default github.com, gitlab.com,
-  bitbucket.org), `CONTINUUM_VERIFY_TIMEOUT` (120 s). Inspection is static
+  justification, recorded in the audit log. Verification always runs: there is
+  no off switch, and the service refuses to start without `git` or the k9-aif
+  inspection rules (`/health` reports the rule version). Settings:
+  `CONTINUUM_VERIFY_HOSTS` (default github.com, gitlab.com, bitbucket.org),
+  `CONTINUUM_VERIFY_TIMEOUT` (120 s). Inspection is static
   (AST and YAML); submitted code is never run.
 - **Governs promotion** through a review workflow: submit → pending review →
   published → promoted, with every transition logged to an audit trail.

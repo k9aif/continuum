@@ -16,7 +16,11 @@ Before 1.2.0 the declaration was recorded and never re-run.
 Only https URLs on allowed hosts are fetched (CONTINUUM_VERIFY_HOSTS, default github.com,
 gitlab.com, bitbucket.org), every address the host resolves to must be public, git never
 prompts for credentials, and the fetch is shallow and time-limited (CONTINUUM_VERIFY_TIMEOUT,
-default 120 s). CONTINUUM_VERIFY=false turns verification off (every submission unverifiable).
+default 120 s).
+
+Verification always runs; there is no switch to turn it off. The service refuses to start
+without git or the K9-AIF inspection rules (require_ready), so a missing dependency can never
+turn every submission into "unverifiable" unnoticed.
 """
 
 from __future__ import annotations
@@ -43,8 +47,27 @@ class SourceRefused(Exception):
     """The source reference may not be fetched (scheme, host or address not allowed)."""
 
 
-def enabled() -> bool:
-    return os.getenv("CONTINUUM_VERIFY", "true").strip().lower() not in ("0", "false", "no")
+class VerificationUnavailable(RuntimeError):
+    """The server cannot re-run the inspection; raised at startup, never per submission."""
+
+
+def require_ready() -> str:
+    """Check at startup that every submission can be verified: git and the k9_inspect rules.
+    Returns the k9-aif version the rules come from."""
+    if os.getenv("CONTINUUM_VERIFY") is not None:
+        log.warning("[verify] CONTINUUM_VERIFY is set but no longer read: verification always runs")
+    if not shutil.which("git"):
+        raise VerificationUnavailable("git is not installed: the Continuum cannot fetch submitted sources")
+    try:
+        from k9_aif_abb.k9_inspect.inspector import K9Inspector  # noqa: F401
+    except ImportError as exc:
+        raise VerificationUnavailable(
+            "the K9-AIF inspection rules are not installed (pip install k9-aif)") from exc
+    try:
+        from importlib.metadata import version
+        return version("k9-aif")
+    except Exception:
+        return "unknown"
 
 
 def needs_justification(status: Optional[str]) -> bool:
@@ -125,8 +148,6 @@ def verify(git_ref: Optional[str], commit: Optional[str] = None) -> Dict[str, An
         log.info("[verify] %s: unverifiable (%s)", git_ref, reason)
         return {"status": UNVERIFIABLE, "reason": reason, "commit": commit, "counts": None, "findings": []}
 
-    if not enabled():
-        return unverifiable("server-side verification is turned off")
     if not git_ref:
         return unverifiable("no source reference (git_ref) was submitted")
     try:

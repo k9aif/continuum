@@ -200,3 +200,32 @@ def test_admin_approval_needs_a_justification_too():
 
 class _DBWith(_FakeDB):
     def refresh(self, o): pass
+
+
+def test_verification_cannot_be_turned_off(monkeypatch, fetched, tmp_path):
+    monkeypatch.setenv("CONTINUUM_VERIFY", "false")
+    fetched(solution(tmp_path / "ok"))
+    v = verification.verify("https://github.com/o/r")
+    assert v["status"] != verification.UNVERIFIABLE and v["commit"] == "c0ffee1234567890"
+
+
+def test_startup_refuses_without_git(monkeypatch):
+    monkeypatch.setattr(verification.shutil, "which", lambda name: None)
+    with pytest.raises(verification.VerificationUnavailable, match="git"):
+        verification.require_ready()
+
+
+def test_startup_refuses_without_the_inspection_rules(monkeypatch):
+    import builtins
+    real_import = builtins.__import__
+    def no_rules(name, *a, **kw):
+        if name.startswith("k9_aif_abb.k9_inspect"):
+            raise ImportError(name)
+        return real_import(name, *a, **kw)
+    monkeypatch.setattr(builtins, "__import__", no_rules)
+    with pytest.raises(verification.VerificationUnavailable, match="inspection rules"):
+        verification.require_ready()
+
+
+def test_startup_passes_with_git_and_rules():
+    assert verification.require_ready()

@@ -67,6 +67,9 @@ def startup():
     _migrate()
     seed_abbs()
     seed_examples()
+    # Every submission is re-inspected: refuse to start without git or the k9_inspect rules.
+    from backend import verification
+    app.state.rules_version = verification.require_ready()
     # Review routing and harvesting decisions from K9X HIL (CONTINUUM_HIL_ENABLED)
     from backend import hil_bridge
     hil_bridge.start_reply_consumer()
@@ -75,7 +78,8 @@ def startup():
 @app.get("/health")
 def health():
     from backend import hil_bridge
-    return {"status": "ok", "schema": SCHEMA, "hil_routing": hil_bridge.enabled()}
+    return {"status": "ok", "schema": SCHEMA, "hil_routing": hil_bridge.enabled(),
+            "verification": {"always_on": True, "k9aif_rules": getattr(app.state, "rules_version", None)}}
 
 
 def _versioned_index() -> str:

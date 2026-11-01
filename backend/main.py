@@ -26,7 +26,7 @@ _WEBUI  = _ROOT / "webui"
 _STATIC = _WEBUI / "static"
 _INDEX  = _WEBUI / "index.html"
 
-app = FastAPI(title="k9x Continuum", version="1.0.0")
+app = FastAPI(title="k9x Continuum", version="1.2.1")
 
 app.include_router(abbs_router)
 app.include_router(sbbs_router)
